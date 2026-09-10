@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-09-09",
+  "engine_name": "RapidOCR-PP-OCRv3",
+  "detection_params": {
+    "max_side_len": 960,
+    "det_db_thresh": 0.3,
+    "det_db_box_thresh": 0.5,
+    "det_db_unclip_ratio": 1.6
+  },
+  "recognition_params": {
+    "rec_img_h": 48,
+    "rec_img_w": 320
+  },
+  "consolidation_params": {
+    "iou_threshold": 0.35,
+    "ios_threshold": 0.6,
+    "horizontal_overlap_threshold": 0.65,
+    "vertical_center_tolerance_factor": 0.4
+  },
+  "symbol_normalization_rules": [
+    {
+      "pattern": "^R\\s*(\\d)",
+      "replacement": "₹\\1",
+      "description": "Leading R before digit -> Rupee"
+    },
+    {
+      "pattern": "^买\\s*(\\d)",
+      "replacement": "₹\\1",
+      "description": "Leading Chinese artifact -> Rupee"
+    },
+    {
+      "pattern": "^7(\\d{1,2},\\d{3})",
+      "replacement": "₹\\1",
+      "description": "Leading 7 before thousands comma -> Rupee"
+    },
+    {
+      "pattern": "^7(\\d{3})\\b",
+      "replacement": "₹\\1",
+      "description": "Leading 7 before 3-digit amount -> Rupee"
+    }
+  ],
+  "scoring_weights": {
+    "currency_symbol_presence": 0.4,
+    "normalized_symbol_presence": 0.25,
+    "financial_amount_pattern": 0.3,
+    "indian_comma_format": 0.15,
+    "chinese_character_penalty": -0.5,
+    "single_char_noise_penalty": -0.2
+  },
+  "amount_extractor": {
+    "currency": "INR",
+    "trim_left_ratio": 0.2
+  }
+}

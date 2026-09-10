@@ -1,0 +1,114 @@
+import '../../domain/entities/extracted_transaction.dart';
+
+/// Status of the screenshot import pipeline.
+enum ImportStatus {
+  /// User is on the landing screen to select screenshots.
+  initial,
+
+  /// Screenshots are selected and previewed with add/remove controls.
+  preview,
+
+  /// Extraction and duplicate detection pipeline is running.
+  processing,
+
+  /// Extraction complete, user reviews and edits transactions.
+  review,
+
+  /// Transactions confirmed and saved to SQLite.
+  completed,
+
+  /// Fatal error encountered.
+  error,
+}
+
+/// Immutable state model for the Screenshot Import feature.
+class ImportState {
+  final ImportStatus status;
+  final List<String> selectedImagePaths;
+  final String currentProcessingStep;
+  final double processingProgress;
+  final List<ExtractedTransaction> extractedTransactions;
+  final Set<String> selectedTransactionIds;
+  final List<String> failedImagePaths;
+  final List<String> errors;
+  final int importedCount;
+  final String? fatalErrorMessage;
+  final String? debugOcrText;
+
+  const ImportState({
+    this.status = ImportStatus.initial,
+    this.selectedImagePaths = const [],
+    this.currentProcessingStep = '',
+    this.processingProgress = 0.0,
+    this.extractedTransactions = const [],
+    this.selectedTransactionIds = const {},
+    this.failedImagePaths = const [],
+    this.errors = const [],
+    this.importedCount = 0,
+    this.fatalErrorMessage,
+    this.debugOcrText,
+  });
+
+  /// Total number of extracted transactions found.
+  int get totalCount => extractedTransactions.length;
+
+  /// Number of currently selected transactions.
+  int get selectedCount => selectedTransactionIds.length;
+
+  /// Whether all extracted transactions are selected.
+  bool get isAllSelected => totalCount > 0 && selectedCount == totalCount;
+
+  /// Sum of amounts for currently checked transactions (in minor units / paise).
+  int get selectedTotalAmount {
+    int total = 0;
+    for (final tx in extractedTransactions) {
+      if (selectedTransactionIds.contains(tx.id) && tx.amount != null) {
+        total += tx.amount!;
+      }
+    }
+    return total;
+  }
+
+  /// Extracted transactions that are currently selected.
+  List<ExtractedTransaction> get selectedTransactions {
+    return extractedTransactions
+        .where((tx) => selectedTransactionIds.contains(tx.id))
+        .toList();
+  }
+
+  /// Count of transactions marked as duplicate.
+  int get duplicateCount {
+    return extractedTransactions.where((tx) => tx.isDuplicate).length;
+  }
+
+  ImportState copyWith({
+    ImportStatus? status,
+    List<String>? selectedImagePaths,
+    String? currentProcessingStep,
+    double? processingProgress,
+    List<ExtractedTransaction>? extractedTransactions,
+    Set<String>? selectedTransactionIds,
+    List<String>? failedImagePaths,
+    List<String>? errors,
+    int? importedCount,
+    String? fatalErrorMessage,
+    String? debugOcrText,
+  }) {
+    return ImportState(
+      status: status ?? this.status,
+      selectedImagePaths: selectedImagePaths ?? this.selectedImagePaths,
+      currentProcessingStep:
+          currentProcessingStep ?? this.currentProcessingStep,
+      processingProgress: processingProgress ?? this.processingProgress,
+      extractedTransactions:
+          extractedTransactions ?? this.extractedTransactions,
+      selectedTransactionIds:
+          selectedTransactionIds ?? this.selectedTransactionIds,
+      failedImagePaths: failedImagePaths ?? this.failedImagePaths,
+      errors: errors ?? this.errors,
+      importedCount: importedCount ?? this.importedCount,
+      fatalErrorMessage: fatalErrorMessage,
+      debugOcrText: debugOcrText ?? this.debugOcrText,
+    );
+  }
+}
