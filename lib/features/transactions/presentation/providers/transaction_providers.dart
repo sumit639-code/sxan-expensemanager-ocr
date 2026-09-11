@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/database_provider.dart';
 import '../../../../shared/enums/transaction_enums.dart';
-import '../../../dashboard/domain/models/dashboard_summary.dart';
 import '../../data/repositories/drift_transaction_repository.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transaction_filter.dart';
@@ -220,13 +219,4 @@ final filteredTransactionsProvider = Provider<AsyncValue<List<Transaction>>>((
   });
 });
 
-/// Real-time summary computation provider for Dashboard.
-final dashboardRealtimeSummaryProvider = Provider<AsyncValue<DashboardSummary>>(
-  (ref) {
-    final asyncTransactions = ref.watch(watchAllTransactionsProvider);
-    return asyncTransactions.whenData((transactions) {
-      return GetMonthlySummaryUseCase.calculateSummary(transactions);
-    });
-  },
-);
 

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
 import '../../domain/entities/extracted_transaction.dart';
 
@@ -107,7 +108,7 @@ class _EditExtractedTransactionSheetState
 
   void _save() {
     final parsedDecimal = double.tryParse(_amountController.text.trim()) ?? 0.0;
-    final amountMinor = (parsedDecimal * 100).round();
+    final amountMinor = MoneyUtils.doubleToMinorUnits(parsedDecimal);
 
     final updated = widget.transaction.copyWith(
       title: _titleController.text.trim().isNotEmpty
@@ -128,6 +129,32 @@ class _EditExtractedTransactionSheetState
     widget.onSave(updated);
     Navigator.pop(context);
   }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Transaction?'),
+        content: const Text('This candidate will be removed from the import list.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.errorRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      widget.onDelete();
+      Navigator.pop(context);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -183,10 +210,7 @@ class _EditExtractedTransactionSheetState
                     color: AppColors.errorRed,
                   ),
                   tooltip: 'Delete transaction',
-                  onPressed: () {
-                    widget.onDelete();
-                    Navigator.pop(context);
-                  },
+                  onPressed: _confirmDelete,
                 ),
               ],
             ),

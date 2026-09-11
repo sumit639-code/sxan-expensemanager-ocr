@@ -374,12 +374,15 @@ class ImportController extends StateNotifier<ImportState> {
     final toSave = state.selectedTransactions;
     if (toSave.isEmpty) return false;
 
+    final totalAmount = state.selectedTotalAmount;
+
     try {
       final saved = await _confirmUseCase.execute(toSave);
       if (!mounted) return false;
       state = state.copyWith(
         status: ImportStatus.completed,
         importedCount: saved.length,
+        importedTotalAmount: totalAmount,
       );
       return true;
     } catch (e) {

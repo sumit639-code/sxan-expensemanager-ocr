@@ -193,23 +193,73 @@ void main() {
     });
 
     test(
-      'confirmImport saves selected transactions and marks completed',
+      'confirmImport saves selected transactions, ignores deselected, and records total amount',
       () async {
         controller.setImages(['shot1.png']);
         await controller.startProcessing();
 
-        final selectedCount = controller.state.selectedCount;
-        expect(selectedCount, greaterThan(0));
+        final first = controller.state.extractedTransactions.first;
+        final second = controller.state.extractedTransactions[1];
+
+        // Ensure only first is selected
+        controller.toggleSelectAll(); // 0 selected
+        controller.toggleTransactionSelection(first.id); // 1 selected
+
+        expect(controller.state.selectedCount, 1);
+        final expectedTotal = first.amount!;
+        expect(controller.state.selectedTotalAmount, expectedTotal);
 
         final success = await controller.confirmImport();
 
         expect(success, isTrue);
         expect(controller.state.status, ImportStatus.completed);
-        expect(controller.state.importedCount, selectedCount);
+        expect(controller.state.importedCount, 1);
+        expect(controller.state.importedTotalAmount, expectedTotal);
 
         final saved = await fakeRepo.getAllTransactions();
-        expect(saved.length, selectedCount);
+        expect(saved.length, 1);
+        expect(saved.first.amount, expectedTotal);
+        // Second transaction was not imported
+        expect(saved.any((t) => t.amount == second.amount && t.title == (second.merchant ?? second.title)), isFalse);
       },
     );
+
+    test('edit does not write to repository before confirmation', () async {
+      controller.setImages(['shot1.png']);
+      await controller.startProcessing();
+
+      final first = controller.state.extractedTransactions.first;
+      final edited = first.copyWith(merchant: 'Modified Merchant', amount: 88800);
+
+      controller.updateExtractedTransaction(edited);
+
+      // Repository must remain empty
+      final savedBefore = await fakeRepo.getAllTransactions();
+      expect(savedBefore, isEmpty);
+
+      // Verify in-memory updated
+      expect(controller.state.extractedTransactions.first.merchant, 'Modified Merchant');
+      expect(controller.state.extractedTransactions.first.amount, 88800);
+    });
+
+    test('selected total dynamically updates on individual select/deselect', () async {
+      controller.setImages(['shot1.png']);
+      await controller.startProcessing();
+
+      controller.toggleSelectAll(); // clear all
+      expect(controller.state.selectedTotalAmount, 0);
+
+      final t1 = controller.state.extractedTransactions[0];
+      final t2 = controller.state.extractedTransactions[1];
+
+      controller.toggleTransactionSelection(t1.id);
+      expect(controller.state.selectedTotalAmount, t1.amount);
+
+      controller.toggleTransactionSelection(t2.id);
+      expect(controller.state.selectedTotalAmount, t1.amount! + t2.amount!);
+
+      controller.toggleTransactionSelection(t1.id);
+      expect(controller.state.selectedTotalAmount, t2.amount);
+    });
   });
 }

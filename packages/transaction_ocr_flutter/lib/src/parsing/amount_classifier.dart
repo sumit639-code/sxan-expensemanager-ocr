@@ -201,6 +201,40 @@ class AmountClassifier {
     }
   }
 
+  /// Parses cleaned numeric string directly to integer minor units (paise/cents).
+  /// Preserves exact decimals without floating-point precision loss.
+  /// Examples:
+  ///   "20" -> 2000
+  ///   "205" -> 20500
+  ///   "2,200" -> 220000
+  ///   "5,000" -> 500000
+  ///   "200.90" -> 20090
+  ///   "3,700.97" -> 370097
+  ///   "0.50" -> 50
+  static int? parseMinorUnits(String noCurrStr) {
+    if (noCurrStr.isEmpty) return null;
+    try {
+      final clean = noCurrStr.replaceAll(',', '').replaceAll(' ', '').trim();
+      if (clean.isEmpty) return null;
+      if (clean.contains('.')) {
+        final parts = clean.split('.');
+        final whole = int.parse(parts[0]);
+        var fracStr = parts[1];
+        if (fracStr.length == 1) {
+          fracStr = '${fracStr}0';
+        } else if (fracStr.length > 2) {
+          fracStr = fracStr.substring(0, 2);
+        }
+        final frac = int.parse(fracStr);
+        return (whole * 100) + frac;
+      }
+      final whole = int.parse(clean);
+      return whole * 100;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static AmountClassification _accept(
     String original,
     String normalized,
@@ -208,10 +242,12 @@ class AmountClassifier {
     bool? spatialRightAligned,
   }) {
     final parsed = parseValue(noCurr);
+    final minorUnits = parseMinorUnits(noCurr);
     final hasRupee = normalized.contains('₹');
     return AmountClassification(
       isAmount: true,
       parsedValue: parsed,
+      parsedMinorUnits: minorUnits,
       normalizedText: normalized,
       rejectionReason: null,
       hasCurrencySymbol: hasRupee || original.trim().startsWith('R'),
@@ -227,6 +263,7 @@ class AmountClassifier {
     return AmountClassification(
       isAmount: false,
       parsedValue: null,
+      parsedMinorUnits: null,
       normalizedText: original,
       rejectionReason: reason,
       hasCurrencySymbol: false,
@@ -234,3 +271,4 @@ class AmountClassifier {
     );
   }
 }
+

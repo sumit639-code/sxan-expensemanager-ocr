@@ -142,29 +142,104 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
           },
         );
 
-        // Record debug output
-        debugOcrBuffer.writeln('=== LOCAL ONNX OCR SCREENSHOT $currentNum ($path) ===');
+        // Record structured debug output for Debug Extraction Inspector
+        debugOcrBuffer.writeln('========================================');
+        debugOcrBuffer.writeln('SCREENSHOT $currentNum: ${ocrResult.filename}');
+        debugOcrBuffer.writeln('Path: $path');
+        debugOcrBuffer.writeln('Dimensions: ${ocrResult.width}x${ocrResult.height}');
         debugOcrBuffer.writeln('Engine: ${ocrResult.engine} | Pipeline: ${ocrResult.pipelineVersion}');
-        debugOcrBuffer.writeln('Dimensions: ${ocrResult.width}x${ocrResult.height} | Extracted Items: ${ocrResult.itemsCount} | Candidates: ${ocrResult.transactionCandidatesCount}');
-        for (final item in ocrResult.items) {
-          final amtStr = item.isNumericAmount ? ' [AMT: ₹${item.parsedIntegerAmount}]' : '';
-          debugOcrBuffer.writeln('#${item.readingIndex} "${item.textNormalized}" (Score: ${item.compositeScore.toStringAsFixed(2)})$amtStr');
+        debugOcrBuffer.writeln('----------------------------------------');
+        debugOcrBuffer.writeln('1. RAW OCR ITEMS (${ocrResult.items.length}):');
+        if (ocrResult.items.isEmpty) {
+          debugOcrBuffer.writeln('  (No raw OCR items in payload)');
+        } else {
+          for (final item in ocrResult.items) {
+            final amtTag = item.isNumericAmount ? ' [AMOUNT CANDIDATE: ₹${item.parsedIntegerAmount}]' : '';
+            final bboxStr = '[${item.bbox.minX.round()}, ${item.bbox.minY.round()}, ${item.bbox.maxX.round()}, ${item.bbox.maxY.round()}]';
+            debugOcrBuffer.writeln('  #${item.readingIndex} "${item.text}" -> norm: "${item.textNormalized}" | bbox: $bboxStr | conf: ${(item.confidence * 100).toStringAsFixed(1)}% | score: ${item.compositeScore.toStringAsFixed(2)}$amtTag');
+          }
         }
+        debugOcrBuffer.writeln('----------------------------------------');
+        debugOcrBuffer.writeln('2. CANDIDATE TRANSACTIONS (${ocrResult.transactions.length}):');
+        if (ocrResult.transactions.isEmpty) {
+          debugOcrBuffer.writeln('  (No candidates grouped)');
+        } else {
+          for (int cIdx = 0; cIdx < ocrResult.transactions.length; cIdx++) {
+            final cand = ocrResult.transactions[cIdx];
+            final mBbox = cand.merchantBbox != null
+                ? '[${cand.merchantBbox!.minX.round()}, ${cand.merchantBbox!.minY.round()}, ${cand.merchantBbox!.maxX.round()}, ${cand.merchantBbox!.maxY.round()}]'
+                : 'none';
+            final aBbox = cand.amountBbox != null
+                ? '[${cand.amountBbox!.minX.round()}, ${cand.amountBbox!.minY.round()}, ${cand.amountBbox!.maxX.round()}, ${cand.amountBbox!.maxY.round()}]'
+                : 'none';
+            debugOcrBuffer.writeln('  Row #${cIdx + 1}:');
+            debugOcrBuffer.writeln('    • Merchant: "${cand.merchantText ?? "(none)"}" (bbox: $mBbox)');
+            debugOcrBuffer.writeln('    • Amount: ${cand.amountTextNormalized} (raw: "${cand.amountTextRaw}", minorUnits: ${cand.amountMinorUnits ?? (cand.amountValue != null ? (cand.amountValue! * 100).round() : 0)}, bbox: $aBbox)');
+            debugOcrBuffer.writeln('    • Date: "${cand.dateText ?? "(none)"}"');
+            debugOcrBuffer.writeln('    • Type: ${cand.transactionType}');
+            debugOcrBuffer.writeln('    • Confidence: ${(cand.groupingConfidence * 100).toStringAsFixed(1)}% (amt conf: ${(cand.amountConfidence * 100).toStringAsFixed(1)}%)');
+            if (cand.warnings.isNotEmpty) {
+              debugOcrBuffer.writeln('    • Warnings: ${cand.warnings.join(", ")}');
+            }
+          }
+        }
+        debugOcrBuffer.writeln('========================================');
         debugOcrBuffer.writeln();
 
         final candidateTxs = <ExtractedTransaction>[];
 
         // 3a. First consume structured V2 transaction candidates from TransactionGrouper
         if (ocrResult.transactions.isNotEmpty) {
+          // Pre-resolve dates for all candidates in this screenshot
+          final parsedDates = <int, DateTime>{};
+          for (int idx = 0; idx < ocrResult.transactions.length; idx++) {
+            final rawDate = ocrResult.transactions[idx].dateText;
+            if (rawDate != null && rawDate.trim().isNotEmpty) {
+              final res = DateExtractor.parseDate(rawDate);
+              if (res != null) {
+                parsedDates[idx] = res.date;
+              } else {
+                final tryDt = DateTime.tryParse(rawDate);
+                if (tryDt != null) parsedDates[idx] = tryDt;
+              }
+            }
+          }
+
+          // Contextual date propagation: if a candidate has no explicit date (e.g. cut off at screen edge),
+          // inherit from nearest preceding row, or nearest succeeding row in the same screenshot.
+          final DateTime? screenshotFallbackDate =
+              parsedDates.isNotEmpty ? parsedDates.values.first : null;
+
           for (int idx = 0; idx < ocrResult.transactions.length; idx++) {
             final cand = ocrResult.transactions[idx];
             final amtValue = cand.amountValue;
             if (amtValue == null || amtValue <= 0) continue;
 
-            final minorUnits = MoneyUtils.doubleToMinorUnits(amtValue.toDouble());
-            final parsedDate = DateExtractor.parseDate(cand.dateText ?? '')?.date ??
-                (cand.dateText != null ? DateTime.tryParse(cand.dateText!) : null) ??
-                DateTime.now();
+            final minorUnits = cand.amountMinorUnits ?? MoneyUtils.doubleToMinorUnits(amtValue.toDouble());
+
+            DateTime? resolvedDate = parsedDates[idx];
+            bool dateInferred = false;
+            if (resolvedDate == null) {
+              // Search backwards for nearest preceding date in screenshot
+              for (int back = idx - 1; back >= 0; back--) {
+                if (parsedDates.containsKey(back)) {
+                  resolvedDate = parsedDates[back];
+                  dateInferred = true;
+                  break;
+                }
+              }
+              // If none preceding, search forward
+              if (resolvedDate == null) {
+                for (int fwd = idx + 1; fwd < ocrResult.transactions.length; fwd++) {
+                  if (parsedDates.containsKey(fwd)) {
+                    resolvedDate = parsedDates[fwd];
+                    dateInferred = true;
+                    break;
+                  }
+                }
+              }
+              resolvedDate ??= screenshotFallbackDate ?? DateTime.now();
+            }
 
             final merchant = cand.merchantText?.trim();
             final title = (merchant != null && merchant.isNotEmpty)
@@ -175,6 +250,15 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
                 ? cand.groupingConfidence
                 : cand.amountConfidence;
 
+            final txType = (cand.transactionType.toLowerCase() == 'income')
+                ? TransactionType.income
+                : TransactionType.expense;
+
+            final activeWarnings = List<String>.from(cand.warnings);
+            if (dateInferred) {
+              activeWarnings.remove('Date not detected');
+            }
+
             candidateTxs.add(
               ExtractedTransaction(
                 id: 'tx_local_${DateTime.now().microsecondsSinceEpoch}_${i}_$idx',
@@ -182,10 +266,11 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
                 currency: 'INR',
                 title: title,
                 merchant: merchant,
-                date: parsedDate,
-                type: TransactionType.expense,
+                date: resolvedDate,
+                type: txType,
                 confidence: double.parse(confidence.clamp(0.1, 1.0).toStringAsFixed(2)),
                 sourceReference: ocrResult.filename,
+                note: activeWarnings.isNotEmpty ? activeWarnings.join('; ') : null,
                 rawText: cand.amountTextRaw.isNotEmpty
                     ? cand.amountTextRaw
                     : (cand.amountTextNormalized.isNotEmpty
@@ -207,6 +292,7 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
           final fallbackParsed = _fallbackParser.parse(ocrDoc);
           candidateTxs.addAll(fallbackParsed);
         }
+
 
         if (candidateTxs.isEmpty) {
           failedImages.add(path);

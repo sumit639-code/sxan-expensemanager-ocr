@@ -92,8 +92,9 @@ class ExtractedTransaction {
         ? DateFormat('yyyy-MM-dd').format(date!)
         : 'no-date';
     final amtKey = amount ?? 0;
-    return '$dateKey|$amtKey|$effectiveTitle';
+    return '$dateKey|$amtKey|${type.name}|$effectiveTitle';
   }
+
 
   /// Converts this extracted transaction to a persistent [Transaction] entity with source=screenshot.
   ///

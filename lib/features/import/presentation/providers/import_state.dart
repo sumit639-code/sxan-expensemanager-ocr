@@ -1,3 +1,4 @@
+import '../../../../core/utils/money_utils.dart';
 import '../../domain/entities/extracted_transaction.dart';
 
 /// Status of the screenshot import pipeline.
@@ -32,6 +33,7 @@ class ImportState {
   final List<String> failedImagePaths;
   final List<String> errors;
   final int importedCount;
+  final int importedTotalAmount;
   final String? fatalErrorMessage;
   final String? debugOcrText;
 
@@ -45,6 +47,7 @@ class ImportState {
     this.failedImagePaths = const [],
     this.errors = const [],
     this.importedCount = 0,
+    this.importedTotalAmount = 0,
     this.fatalErrorMessage,
     this.debugOcrText,
   });
@@ -69,6 +72,14 @@ class ImportState {
     return total;
   }
 
+  /// Formatted string for the current selected total (e.g. ₹8,493.00).
+  String get formattedSelectedTotal =>
+      MoneyUtils.formatMinorUnits(selectedTotalAmount);
+
+  /// Formatted string for the total amount imported.
+  String get formattedImportedTotal =>
+      MoneyUtils.formatMinorUnits(importedTotalAmount);
+
   /// Extracted transactions that are currently selected.
   List<ExtractedTransaction> get selectedTransactions {
     return extractedTransactions
@@ -81,6 +92,11 @@ class ImportState {
     return extractedTransactions.where((tx) => tx.isDuplicate).length;
   }
 
+  /// Count of transactions that require user review (low confidence, duplicate, or warnings).
+  int get needsReviewCount {
+    return extractedTransactions.where((tx) => tx.needsReview).length;
+  }
+
   ImportState copyWith({
     ImportStatus? status,
     List<String>? selectedImagePaths,
@@ -91,6 +107,7 @@ class ImportState {
     List<String>? failedImagePaths,
     List<String>? errors,
     int? importedCount,
+    int? importedTotalAmount,
     String? fatalErrorMessage,
     String? debugOcrText,
   }) {
@@ -107,8 +124,10 @@ class ImportState {
       failedImagePaths: failedImagePaths ?? this.failedImagePaths,
       errors: errors ?? this.errors,
       importedCount: importedCount ?? this.importedCount,
+      importedTotalAmount: importedTotalAmount ?? this.importedTotalAmount,
       fatalErrorMessage: fatalErrorMessage,
       debugOcrText: debugOcrText ?? this.debugOcrText,
     );
   }
 }
+

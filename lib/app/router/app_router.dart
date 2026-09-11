@@ -41,6 +41,10 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const DashboardPage(),
         ),
         GoRoute(
+          path: '/dashboard',
+          redirect: (context, state) => '/home',
+        ),
+        GoRoute(
           path: '/insights',
           name: 'insights',
           builder: (context, state) => const AnalysisPage(),

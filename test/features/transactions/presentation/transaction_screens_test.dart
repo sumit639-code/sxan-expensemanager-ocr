@@ -137,7 +137,7 @@ void main() {
   );
 
   testWidgets(
-    'QuickActions renders buttons for Add, Scan, Analytics, and More',
+    'QuickActions renders buttons for Expense, Income, Import, and Insights',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -146,10 +146,10 @@ void main() {
         ),
       );
 
-      expect(find.text('Add'), findsOneWidget);
-      expect(find.text('Scan'), findsOneWidget);
-      expect(find.text('Analytics'), findsOneWidget);
-      expect(find.text('More'), findsOneWidget);
+      expect(find.text('Expense'), findsOneWidget);
+      expect(find.text('Income'), findsOneWidget);
+      expect(find.text('Import'), findsOneWidget);
+      expect(find.text('Insights'), findsOneWidget);
     },
   );
 }

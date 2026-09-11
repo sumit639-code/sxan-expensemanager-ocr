@@ -50,6 +50,34 @@ void main() {
       expect(result.tokenClassifications.first.tokenType, equals('date'));
     });
 
+    test('date string like "3August" and "1August" should be classified as date', () {
+      final dets = [
+        _makeDet('3August', '3August', 78, 195, 142, 213),
+        _makeDet('1August', '1August', 76, 422, 140, 443),
+      ];
+      final result = TransactionGrouper.group(
+        detections: dets,
+        imgWidth: 462,
+        imgHeight: 1024,
+      );
+      expect(result.tokenClassifications[0].tokenType, equals('date'));
+      expect(result.tokenClassifications[1].tokenType, equals('date'));
+    });
+
+    test('relative date strings "Today" and "Yesterday" should be classified as date, not noise', () {
+      final dets = [
+        _makeDet('Today', 'Today', 78, 195, 142, 213),
+        _makeDet('Yesterday', 'Yesterday', 78, 247, 168, 267),
+      ];
+      final result = TransactionGrouper.group(
+        detections: dets,
+        imgWidth: 462,
+        imgHeight: 1024,
+      );
+      expect(result.tokenClassifications[0].tokenType, equals('date'));
+      expect(result.tokenClassifications[1].tokenType, equals('date'));
+    });
+
     test('rupee amount on right side should be classified as amount', () {
       final dets = [
         _makeDet('R40', '₹40', 406, 224, 441, 243, confidence: 1.1),

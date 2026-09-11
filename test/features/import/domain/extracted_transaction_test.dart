@@ -90,8 +90,9 @@ void main() {
       );
 
       expect(tx1.normalizedFingerprint, equals(tx2.normalizedFingerprint));
-      expect(tx1.normalizedFingerprint, '2026-09-08|42000|swiggy');
+      expect(tx1.normalizedFingerprint, '2026-09-08|42000|expense|swiggy');
     });
+
 
     test(
       'toTransactionEntity converts successfully with source = screenshot',
