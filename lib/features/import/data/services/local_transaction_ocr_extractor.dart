@@ -125,6 +125,11 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
         stepProgress,
       );
 
+      // Yield between screenshots so the loading animation stays smooth
+      if (i > 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
       try {
         final ocrResult = await _ocrService.extractImage(
           file,
@@ -212,6 +217,24 @@ class LocalTransactionOcrExtractor implements TransactionExtractor {
           successfulImages.add(path);
           allExtracted.addAll(candidateTxs);
         }
+      } on pkg.ModelLoadException catch (e) {
+        if (kDebugMode) {
+          debugPrint('[LOCAL OCR MODEL ERROR] $path: $e');
+        }
+        failedImages.add(path);
+        errors.add('Screenshot $currentNum: OCR model failed to load. Please restart the app and try again.');
+      } on pkg.ModelInferenceException catch (e) {
+        if (kDebugMode) {
+          debugPrint('[LOCAL OCR INFERENCE ERROR] $path: $e');
+        }
+        failedImages.add(path);
+        errors.add('Screenshot $currentNum: OCR inference failed. The image may be too large or corrupted.');
+      } on pkg.ImageProcessingException catch (e) {
+        if (kDebugMode) {
+          debugPrint('[LOCAL OCR IMAGE ERROR] $path: $e');
+        }
+        failedImages.add(path);
+        errors.add('Screenshot $currentNum: Could not process this image. Please try a different screenshot.');
       } catch (e, stackTrace) {
         if (kDebugMode) {
           debugPrint('[LOCAL OCR ERROR] Failed on $path: $e\n$stackTrace');

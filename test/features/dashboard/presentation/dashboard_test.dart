@@ -112,7 +112,7 @@ void main() {
 
       // Verify Home shell navigation bar tabs are rendered
       expect(find.text('Home'), findsOneWidget);
-      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.text('History'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
     },
   );

@@ -32,6 +32,8 @@ class ImportPage extends ConsumerWidget {
             behavior: SnackBarBehavior.floating,
           ),
         );
+        // Reset state before navigating (provider is not autoDispose)
+        controller.reset();
         // Return to Transactions list
         context.go('/transactions');
       }

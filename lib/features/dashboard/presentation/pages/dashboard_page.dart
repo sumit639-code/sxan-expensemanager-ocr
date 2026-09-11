@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_spacing.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 
@@ -66,7 +67,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
       data: (summary) {
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.only(
+            left: 20, right: 20, top: 16,
+            bottom: AppSpacing.navPillClearance,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

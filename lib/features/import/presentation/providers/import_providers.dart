@@ -257,16 +257,33 @@ class ImportController extends StateNotifier<ImportState> {
       errors: const [],
     );
 
+    // Throttle progress updates to prevent flooding the widget rebuild queue
+    // when ONNX inference fires many rapid onProgress callbacks.
+    DateTime lastProgressUpdate = DateTime.now();
+    const progressThrottleMs = 150;
+
     try {
+      final imagePaths = List<String>.from(state.selectedImagePaths);
+
       final result = await _processUseCase.execute(
-        state.selectedImagePaths,
+        imagePaths,
         onProgress: (step, progress) {
-          state = state.copyWith(
-            currentProcessingStep: step,
-            processingProgress: progress,
-          );
+          if (!mounted) return;
+          final now = DateTime.now();
+          final elapsed = now.difference(lastProgressUpdate).inMilliseconds;
+          // Always update on significant milestones, throttle the rest
+          final isSignificant = progress >= 0.95 || progress <= 0.06;
+          if (elapsed >= progressThrottleMs || isSignificant) {
+            lastProgressUpdate = now;
+            state = state.copyWith(
+              currentProcessingStep: step,
+              processingProgress: progress,
+            );
+          }
         },
       );
+
+      if (!mounted) return;
 
       // Default selection: select all non-duplicates. Duplicates are unselected by default.
       final defaultSelectedIds = <String>{};
@@ -288,6 +305,7 @@ class ImportController extends StateNotifier<ImportState> {
       if (kDebugMode) {
         debugPrint('[IMPORT ERROR] Pipeline failure: $e\n$stackTrace');
       }
+      if (!mounted) return;
       state = state.copyWith(
         status: ImportStatus.error,
         fatalErrorMessage: 'An error occurred during processing: $e',
@@ -358,15 +376,17 @@ class ImportController extends StateNotifier<ImportState> {
 
     try {
       final saved = await _confirmUseCase.execute(toSave);
+      if (!mounted) return false;
       state = state.copyWith(
         status: ImportStatus.completed,
         importedCount: saved.length,
       );
       return true;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         status: ImportStatus.error,
-        fatalErrorMessage: 'Failed to save imported transactions: ',
+        fatalErrorMessage: 'Failed to save imported transactions: $e',
       );
       return false;
     }
@@ -374,13 +394,19 @@ class ImportController extends StateNotifier<ImportState> {
 
   /// Resets the import flow back to initial state.
   void reset() {
+    if (!mounted) return;
     state = const ImportState();
   }
 }
 
 /// Provider for [ImportController] and [ImportState].
+///
+/// NOT auto-disposed: the import flow is a multi-step workflow with long-running
+/// async OCR operations. Auto-dispose can kill the notifier mid-processing,
+/// causing state-setter crashes. The controller is manually [reset()] when the
+/// user finishes or exits the import flow.
 final importControllerProvider =
-    StateNotifierProvider.autoDispose<ImportController, ImportState>((ref) {
+    StateNotifierProvider<ImportController, ImportState>((ref) {
       return ImportController(
         pickerService: ref.watch(imagePickerServiceProvider),
         preprocessor: ref.watch(imagePreprocessorProvider),

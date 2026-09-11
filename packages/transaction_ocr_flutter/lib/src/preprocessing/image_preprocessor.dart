@@ -58,7 +58,7 @@ class ImagePreprocessor {
 
   /// Resizes and normalizes an image for the DBNet detection model (`det_v1.onnx`).
   ///
-  /// - Min side is scaled to [limitSideLen] (default 736), rounded to multiples of 32.
+  /// - Max side length is constrained to [limitSideLen] (default 736), rounded to multiples of 32.
   /// - Normalization: `(pixel * (1/255) - mean) / std` in BGR planar CHW order.
   static DetPreprocessResult preprocessForDetection(
     img.Image image, {
@@ -67,35 +67,29 @@ class ImagePreprocessor {
     final origW = image.width;
     final origH = image.height;
 
-    // Calculate resize ratio based on min side >= limitSideLen
+    // Calculate resize ratio based on MAX side <= limitSideLen (RapidOCR / PP-OCR DBNet standard)
+    final maxSide = max(origH, origW);
     double ratio = 1.0;
-    if (min(origH, origW) < limitSideLen) {
-      if (origH < origW) {
-        ratio = limitSideLen / origH.toDouble();
-      } else {
-        ratio = limitSideLen / origW.toDouble();
-      }
+    if (maxSide > limitSideLen) {
+      ratio = limitSideLen / maxSide.toDouble();
     }
 
     int resizeH = (origH * ratio).toInt();
     int resizeW = (origW * ratio).toInt();
 
     // Round to nearest multiple of 32
-    resizeH = ((resizeH / 32.0).round() * 32).toInt();
-    resizeW = ((resizeW / 32.0).round() * 32).toInt();
-
-    resizeH = max(32, resizeH);
-    resizeW = max(32, resizeW);
+    resizeH = max(32, ((resizeH / 32.0).round() * 32).toInt());
+    resizeW = max(32, ((resizeW / 32.0).round() * 32).toInt());
 
     final ratioH = resizeH / origH.toDouble();
     final ratioW = resizeW / origW.toDouble();
 
-    // Resize image
+    // Resize image using fast linear interpolation
     final resized = img.copyResize(
       image,
       width: resizeW,
       height: resizeH,
-      interpolation: img.Interpolation.cubic,
+      interpolation: img.Interpolation.linear,
     );
 
     // Build planar CHW Float32 tensor [1, 3, resizeH, resizeW]
@@ -103,18 +97,19 @@ class ImagePreprocessor {
     final Float32List tensor = Float32List(3 * planeSize);
 
     for (int y = 0; y < resizeH; y++) {
+      final yOffset = y * resizeW;
       for (int x = 0; x < resizeW; x++) {
         final pixel = resized.getPixel(x, y);
         final r = pixel.r / 255.0;
         final g = pixel.g / 255.0;
         final b = pixel.b / 255.0;
 
-        final offset = y * resizeW + x;
+        final offset = yOffset + x;
 
         // BGR order
-        tensor[0 * planeSize + offset] = ((b - detMeanBgr[0]) / detStdBgr[0]).toDouble();
-        tensor[1 * planeSize + offset] = ((g - detMeanBgr[1]) / detStdBgr[1]).toDouble();
-        tensor[2 * planeSize + offset] = ((r - detMeanBgr[2]) / detStdBgr[2]).toDouble();
+        tensor[0 * planeSize + offset] = (b - detMeanBgr[0]) / detStdBgr[0];
+        tensor[1 * planeSize + offset] = (g - detMeanBgr[1]) / detStdBgr[1];
+        tensor[2 * planeSize + offset] = (r - detMeanBgr[2]) / detStdBgr[2];
       }
     }
 
@@ -146,19 +141,19 @@ class ImagePreprocessor {
   /// Preprocesses a cropped text line image for the SVTR-LCNet recognition model (`rec_v1.onnx`).
   ///
   /// - Height is fixed at 48.
-  /// - Width is scaled proportionally: `ceil(48 * (w / h))`.
+  /// - Width is scaled proportionally: `ceil(48 * (w / h))`, capped at [maxTargetWidth].
   /// - Normalization: `(pixel / 255.0 - 0.5) / 0.5` in RGB planar CHW order.
   static RecPreprocessResult preprocessForRecognition(
     img.Image crop, {
     int targetHeight = 48,
-    int? maxTargetWidth,
+    int maxTargetWidth = 480,
   }) {
     final h = crop.height;
     final w = crop.width;
     final ratio = w / max(1.0, h.toDouble());
 
     int targetW = (targetHeight * ratio).ceil();
-    if (maxTargetWidth != null && targetW > maxTargetWidth) {
+    if (targetW > maxTargetWidth) {
       targetW = maxTargetWidth;
     }
     targetW = max(16, targetW);
@@ -174,18 +169,19 @@ class ImagePreprocessor {
     final Float32List tensor = Float32List(3 * planeSize);
 
     for (int y = 0; y < targetHeight; y++) {
+      final yOffset = y * targetW;
       for (int x = 0; x < targetW; x++) {
         final pixel = resized.getPixel(x, y);
         final r = pixel.r / 255.0;
         final g = pixel.g / 255.0;
         final b = pixel.b / 255.0;
 
-        final offset = y * targetW + x;
+        final offset = yOffset + x;
 
         // RGB planar CHW order matching SVTR-LCNet / PP-OCR recognition specifications
-        tensor[0 * planeSize + offset] = ((r - 0.5) / 0.5).toDouble();
-        tensor[1 * planeSize + offset] = ((g - 0.5) / 0.5).toDouble();
-        tensor[2 * planeSize + offset] = ((b - 0.5) / 0.5).toDouble();
+        tensor[0 * planeSize + offset] = (r - 0.5) / 0.5;
+        tensor[1 * planeSize + offset] = (g - 0.5) / 0.5;
+        tensor[2 * planeSize + offset] = (b - 0.5) / 0.5;
       }
     }
 

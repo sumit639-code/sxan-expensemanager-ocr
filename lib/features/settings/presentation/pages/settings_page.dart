@@ -31,7 +31,10 @@ class SettingsPage extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.only(
+            left: 20, right: 20, top: 12,
+            bottom: AppSpacing.navPillClearance,
+          ),
           children: [
             // 0. PROFILE & PERSONALIZATION SECTION
             const _SectionHeader(

@@ -381,9 +381,9 @@ class _TransactionHistoryPageState
                   final groupKeys = grouped.keys.toList();
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                    padding: const EdgeInsets.only(
+                      left: 16, right: 16, top: 8,
+                      bottom: AppSpacing.navPillClearance,
                     ),
                     itemCount: groupKeys.length,
                     itemBuilder: (context, groupIndex) {

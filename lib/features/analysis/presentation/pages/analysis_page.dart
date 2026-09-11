@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:expense_app/app/theme/app_colors.dart';
+import 'package:expense_app/app/theme/app_spacing.dart';
 import 'package:expense_app/features/analysis/domain/entities/analysis_data.dart';
 import 'package:expense_app/features/analysis/presentation/providers/analysis_providers.dart';
 import 'package:expense_app/features/analysis/presentation/widgets/category_breakdown_section.dart';
@@ -161,7 +162,10 @@ class AnalysisPage extends ConsumerWidget {
             final expenseFormatted = (metrics.totalExpenseMinor / 100).toStringAsFixed(0);
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.only(
+                left: 16, right: 16, top: 8,
+                bottom: AppSpacing.navPillClearance,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

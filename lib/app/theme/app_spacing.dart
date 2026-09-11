@@ -45,4 +45,8 @@ class AppSpacing {
   static const EdgeInsets padding16 = EdgeInsets.all(space16);
   static const EdgeInsets padding24 = EdgeInsets.all(space24);
   static const EdgeInsets padding32 = EdgeInsets.all(space32);
+
+  /// Extra bottom padding so scrollable content clears the floating nav pill.
+  /// pill height (74) + bottom gap (16) + extra breathing room (10) = 100
+  static const double navPillClearance = 100.0;
 }

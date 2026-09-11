@@ -280,7 +280,12 @@ class ReviewTransactionsView extends StatelessWidget {
 
         // Bottom Sticky Action Button
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: AppSpacing.navPillClearance,
+          ),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : AppColors.white,
             border: Border(
@@ -365,8 +370,13 @@ class ReviewTransactionsView extends StatelessWidget {
     }
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(
+          left: 32,
+          right: 32,
+          top: 32,
+          bottom: AppSpacing.navPillClearance,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
