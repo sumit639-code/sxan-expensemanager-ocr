@@ -10,8 +10,18 @@ import '../../../transactions/domain/entities/transaction_entity.dart';
 class TransactionTile extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool selectionMode;
+  final bool isSelected;
 
-  const TransactionTile({super.key, required this.transaction, this.onTap});
+  const TransactionTile({
+    super.key,
+    required this.transaction,
+    this.onTap,
+    this.onLongPress,
+    this.selectionMode = false,
+    this.isSelected = false,
+  });
 
   IconData _getCategoryIcon(String? categoryId) {
     switch (categoryId?.toLowerCase()) {
@@ -68,15 +78,49 @@ class TransactionTile extends StatelessWidget {
     final subtitleText =
         '${_formatDateSubtitle(transaction.date)} · $categoryLabel';
 
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Material(
-      color: Colors.transparent,
+      color: isSelected
+          ? primaryColor.withValues(alpha: 0.08)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
           child: Row(
             children: [
+              // Selection Indicator (when in selection mode)
+              if (selectionMode) ...[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 22,
+                  height: 22,
+                  margin: const EdgeInsets.only(left: 4, right: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? primaryColor : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? primaryColor
+                          : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 6),
+              ],
+
               // Category Icon Badge
               Container(
                 width: 44,

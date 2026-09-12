@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../analysis/domain/entities/analysis_period.dart';
+import '../../../import/presentation/providers/pending_import_providers.dart';
 
 /// Header widget rendering a time-adaptive greeting, user avatar,
 /// and interactive period selector.
-class DashboardHeader extends StatelessWidget {
+class DashboardHeader extends ConsumerWidget {
   final String userName;
   final VoidCallback? onAvatarPressed;
   final AnalysisPeriod? selectedPeriod;
@@ -57,7 +60,7 @@ class DashboardHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryTextColor = isDark
         ? AppColors.darkTextPrimary
@@ -65,6 +68,7 @@ class DashboardHeader extends StatelessWidget {
     final secondaryTextColor = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
+    final pendingCount = ref.watch(pendingImportCountProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,27 +101,119 @@ class DashboardHeader extends StatelessWidget {
               ],
             ),
 
-            // Circular Avatar Button
-            Material(
-              color: AppColors.primaryPurple,
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: onAvatarPressed,
-                customBorder: const CircleBorder(),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  child: Text(
-                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
+            Row(
+              children: [
+                // Permanent Inbox Button with Red Badge on Pending
+                Material(
+                  color: pendingCount > 0
+                      ? (isDark ? const Color(0x33EF4444) : const Color(0x1AEF4444))
+                      : (isDark ? AppColors.darkSurface : AppColors.gray100),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: () => context.push('/imports/pending'),
+                    customBorder: const CircleBorder(),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: pendingCount > 0
+                                  ? const Color(0xFFEF4444)
+                                  : (isDark
+                                      ? AppColors.darkBorder
+                                      : AppColors.lightBorder),
+                              width: pendingCount > 0 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Icon(
+                            pendingCount > 0
+                                ? Icons.inbox_rounded
+                                : Icons.inbox_outlined,
+                            size: 22,
+                            color: pendingCount > 0
+                                ? const Color(0xFFEF4444)
+                                : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
+                          ),
+                        ),
+                        if (pendingCount > 0)
+                          Positioned(
+                            top: -3,
+                            right: -3,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppColors.darkBackground
+                                      : AppColors.white,
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFEF4444)
+                                        .withValues(alpha: 0.4),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 20,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '$pendingCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+
+                // Circular Avatar Button
+                Material(
+                  color: AppColors.primaryPurple,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: onAvatarPressed,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

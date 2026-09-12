@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/constants/category_constants.dart';
 import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
+import '../../../transactions/domain/services/category_suggestion_service.dart';
 import '../../domain/entities/extracted_transaction.dart';
 
 /// Modal bottom sheet allowing inline correction of an extracted transaction.
@@ -53,18 +55,28 @@ class _EditExtractedTransactionSheetState
   late TransactionType _type;
   late DateTime _date;
   String? _categoryId;
+  bool _userExplicitlyChangedCategory = false;
 
-  final List<String> _categories = [
-    'food',
-    'transport',
-    'shopping',
-    'groceries',
-    'entertainment',
-    'bills',
-    'health',
-    'income',
-    'other',
-  ];
+  void _onTypeChanged(TransactionType newType) {
+    if (_type == newType) return;
+    setState(() {
+      _type = newType;
+      final validCategories = CategoryConstants.getCategoriesForType(newType)
+          .map((c) => c.id)
+          .toSet();
+      if (_categoryId != null && !validCategories.contains(_categoryId)) {
+        _categoryId = null;
+      }
+      if (_categoryId == null && !_userExplicitlyChangedCategory) {
+        final suggestion = CategorySuggestionService.suggest(
+          title: _titleController.text,
+          merchant: _merchantController.text,
+          type: newType,
+        );
+        _categoryId = suggestion.categoryId;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -83,6 +95,16 @@ class _EditExtractedTransactionSheetState
     _type = tx.type;
     _date = tx.date ?? DateTime.now();
     _categoryId = tx.categoryId;
+    if (_categoryId != null && _categoryId!.trim().isNotEmpty) {
+      _userExplicitlyChangedCategory = true;
+    } else {
+      final suggestion = CategorySuggestionService.suggest(
+        title: _titleController.text,
+        merchant: _merchantController.text,
+        type: _type,
+      );
+      _categoryId = suggestion.categoryId;
+    }
   }
 
   @override
@@ -161,17 +183,20 @@ class _EditExtractedTransactionSheetState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Container(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: bottomInset + 20,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: bottomInset + 20,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -224,8 +249,7 @@ class _EditExtractedTransactionSheetState
                     label: 'Expense',
                     isSelected: _type == TransactionType.expense,
                     color: AppColors.primaryPurple,
-                    onTap: () =>
-                        setState(() => _type = TransactionType.expense),
+                    onTap: () => _onTypeChanged(TransactionType.expense),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -234,7 +258,7 @@ class _EditExtractedTransactionSheetState
                     label: 'Income',
                     isSelected: _type == TransactionType.income,
                     color: AppColors.successGreen,
-                    onTap: () => setState(() => _type = TransactionType.income),
+                    onTap: () => _onTypeChanged(TransactionType.income),
                   ),
                 ),
               ],
@@ -337,13 +361,16 @@ class _EditExtractedTransactionSheetState
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _categories.map((cat) {
-                final isSelected = _categoryId == cat;
+              children: CategoryConstants.getCategoriesForType(_type).map((cat) {
+                final isSelected = _categoryId == cat.id;
                 return ChoiceChip(
-                  label: Text(_capitalize(cat)),
+                  label: Text(cat.name),
                   selected: isSelected,
                   onSelected: (val) {
-                    setState(() => _categoryId = val ? cat : null);
+                    setState(() {
+                      _userExplicitlyChangedCategory = true;
+                      _categoryId = val ? cat.id : null;
+                    });
                   },
                   selectedColor: AppColors.primaryPurple.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
@@ -391,13 +418,9 @@ class _EditExtractedTransactionSheetState
           ],
         ),
       ),
-    );
-  }
-
-  static String _capitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
-  }
+    ),
+  );
+}
 }
 
 class _TypeButton extends StatelessWidget {

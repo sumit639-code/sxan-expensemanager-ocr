@@ -28,6 +28,12 @@ class FakeTransactionRepository implements TransactionRepository {
       _storage.removeWhere((t) => t.id == id);
 
   @override
+  Future<void> deleteTransactions(List<String> ids) async {
+    final set = ids.toSet();
+    _storage.removeWhere((t) => set.contains(t.id));
+  }
+
+  @override
   Future<Transaction?> getTransactionById(String id) async =>
       _storage.firstWhere(
         (t) => t.id == id,

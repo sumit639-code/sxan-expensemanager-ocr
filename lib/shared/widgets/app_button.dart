@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 
-enum AppButtonVariant { primary, secondary, text }
+enum AppButtonVariant { primary, secondary, outline, text }
 
-/// Reusable button supporting Primary, Secondary, and Text variants.
+/// Reusable button supporting Primary, Secondary, Outline, and Text variants.
 ///
 /// Meets the minimum touch target requirement (~48px) and supports loading/disabled states.
 class AppButton extends StatelessWidget {
@@ -43,6 +43,15 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.fullWidth = true,
   }) : variant = AppButtonVariant.secondary;
+
+  const AppButton.outline({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.icon,
+    this.isLoading = false,
+    this.fullWidth = true,
+  }) : variant = AppButtonVariant.outline;
 
   const AppButton.text({
     super.key,
@@ -143,6 +152,7 @@ class AppButton extends StatelessWidget {
         return isDark
             ? AppColors.darkSurfaceVariant
             : AppColors.veryLightLavender;
+      case AppButtonVariant.outline:
       case AppButtonVariant.text:
         return Colors.transparent;
     }
@@ -157,6 +167,7 @@ class AppButton extends StatelessWidget {
         return AppColors.white;
       case AppButtonVariant.secondary:
         return isDark ? AppColors.lightLavender : AppColors.primaryPurple;
+      case AppButtonVariant.outline:
       case AppButtonVariant.text:
         return isDark ? AppColors.brightViolet : AppColors.primaryPurple;
     }
@@ -167,6 +178,12 @@ class AppButton extends StatelessWidget {
       return BorderSide(
         color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
         width: 1,
+      );
+    }
+    if (variant == AppButtonVariant.outline && onPressed != null) {
+      return BorderSide(
+        color: isDark ? AppColors.primaryPurple : AppColors.primaryPurple,
+        width: 1.5,
       );
     }
     return BorderSide.none;

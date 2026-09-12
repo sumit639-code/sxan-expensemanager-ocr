@@ -17,6 +17,7 @@ import '../../data/services/python_api_transaction_extractor.dart';
 import '../../data/services/real_transaction_extractor.dart';
 
 import '../../domain/entities/extracted_transaction.dart';
+import '../../domain/entities/pending_import.dart';
 import '../../domain/services/duplicate_detector.dart';
 import '../../domain/services/ocr_engine.dart';
 import '../../domain/services/transaction_extractor.dart';
@@ -232,6 +233,28 @@ class ImportController extends StateNotifier<ImportState> {
     state = state.copyWith(
       status: ImportStatus.preview,
       selectedImagePaths: paths,
+      fatalErrorMessage: null,
+    );
+  }
+
+  /// Sets up state for reviewing an existing PendingImport.
+  void loadPendingImport(PendingImport pendingImport) {
+    final defaultSelectedIds = <String>{};
+    for (final tx in pendingImport.extractedTransactions) {
+      if (!tx.isDuplicate) {
+        defaultSelectedIds.add(tx.id);
+      }
+    }
+    if (defaultSelectedIds.isEmpty && pendingImport.extractedTransactions.isNotEmpty) {
+      defaultSelectedIds.addAll(pendingImport.extractedTransactions.map((tx) => tx.id));
+    }
+
+    state = state.copyWith(
+      status: ImportStatus.review,
+      selectedImagePaths: pendingImport.imagePaths,
+      extractedTransactions: pendingImport.extractedTransactions,
+      selectedTransactionIds: defaultSelectedIds,
+      errors: const [],
       fatalErrorMessage: null,
     );
   }

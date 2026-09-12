@@ -30,10 +30,10 @@ class _SplashPageState extends ConsumerState<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 650),
     );
 
-    // Stage 1 (0ms - 550ms): Logo entrance with subtle spring scale & fade
+    // Stage 1 (0ms - 350ms): Logo entrance with subtle spring scale & fade
     _logoScale = Tween<double>(begin: 0.72, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -48,11 +48,11 @@ class _SplashPageState extends ConsumerState<SplashPage>
       ),
     );
 
-    // Stage 2 (350ms - 800ms): App Title slides up & fades in
+    // Stage 2 (200ms - 500ms): App Title slides up & fades in
     _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.32, 0.72, curve: Curves.easeOut),
+        curve: const Interval(0.30, 0.75, curve: Curves.easeOut),
       ),
     );
 
@@ -62,15 +62,15 @@ class _SplashPageState extends ConsumerState<SplashPage>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.32, 0.72, curve: Curves.easeOutCubic),
+        curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
       ),
     );
 
-    // Stage 3 (550ms - 1000ms): Subtitle & Tagline slides up & fades in
+    // Stage 3 (350ms - 650ms): Subtitle & Tagline slides up & fades in
     _subtitleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.52, 0.92, curve: Curves.easeOut),
+        curve: const Interval(0.50, 1.0, curve: Curves.easeOut),
       ),
     );
 
@@ -80,7 +80,7 @@ class _SplashPageState extends ConsumerState<SplashPage>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.52, 0.92, curve: Curves.easeOutCubic),
+        curve: const Interval(0.50, 1.0, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -89,8 +89,8 @@ class _SplashPageState extends ConsumerState<SplashPage>
   }
 
   Future<void> _navigateToNext() async {
-    // Elegant total splash time of ~1400ms (fast yet smooth)
-    await Future<void>.delayed(const Duration(milliseconds: 1450));
+    // Fast yet smooth splash time (~850ms)
+    await Future<void>.delayed(const Duration(milliseconds: 850));
     if (!mounted) return;
 
     final prefs = ref.read(appPreferencesProvider);
@@ -112,13 +112,21 @@ class _SplashPageState extends ConsumerState<SplashPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final disableAnimations = MediaQuery.of(context).disableAnimations;
 
+    final backgroundColor =
+        isDark ? AppColors.darkBackground : AppColors.white;
+    final primaryTextColor =
+        isDark ? AppColors.white : AppColors.darkTextPrimary;
+    final subtitleColor =
+        isDark ? AppColors.lightLavender : AppColors.lightTextSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          // Ambient Glowing Violet Circles in Background
+          // Ambient Glowing Circles in Background (subtle in light, vibrant in dark)
           Positioned(
             top: -90,
             right: -70,
@@ -129,7 +137,9 @@ class _SplashPageState extends ConsumerState<SplashPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.brightViolet.withValues(alpha: 0.22),
+                    isDark
+                        ? AppColors.brightViolet.withValues(alpha: 0.22)
+                        : AppColors.primaryPurple.withValues(alpha: 0.06),
                     Colors.transparent,
                   ],
                 ),
@@ -146,7 +156,9 @@ class _SplashPageState extends ConsumerState<SplashPage>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.deepPurple.withValues(alpha: 0.35),
+                    isDark
+                        ? AppColors.deepPurple.withValues(alpha: 0.35)
+                        : AppColors.brightViolet.withValues(alpha: 0.05),
                     Colors.transparent,
                   ],
                 ),
@@ -157,15 +169,19 @@ class _SplashPageState extends ConsumerState<SplashPage>
           // Centered Choreographed Brand Content
           Center(
             child: disableAnimations
-                ? _buildStaticContent()
-                : _buildAnimatedContent(),
+                ? _buildStaticContent(primaryTextColor, subtitleColor, isDark)
+                : _buildAnimatedContent(primaryTextColor, subtitleColor, isDark),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedContent() {
+  Widget _buildAnimatedContent(
+    Color primaryTextColor,
+    Color subtitleColor,
+    bool isDark,
+  ) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -174,23 +190,23 @@ class _SplashPageState extends ConsumerState<SplashPage>
           opacity: _logoFade,
           child: ScaleTransition(
             scale: _logoScale,
-            child: _buildLogoBox(),
+            child: _buildLogoBox(isDark),
           ),
         ),
         const SizedBox(height: 24),
 
-        // 2. Title "Expense" with slide & fade
+        // 2. Title "SXAN" with slide & fade
         FadeTransition(
           opacity: _titleFade,
           child: SlideTransition(
             position: _titleSlide,
-            child: const Text(
-              'Expense',
+            child: Text(
+              'SXAN',
               style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.w800,
-                color: AppColors.white,
-                letterSpacing: -0.6,
+                fontSize: 38,
+                fontWeight: FontWeight.w900,
+                color: primaryTextColor,
+                letterSpacing: 1.2,
               ),
             ),
           ),
@@ -202,12 +218,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
           opacity: _subtitleFade,
           child: SlideTransition(
             position: _subtitleSlide,
-            child: const Text(
+            child: Text(
               'Simple. Smart. Yours.',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: AppColors.lightLavender,
+                color: subtitleColor,
                 letterSpacing: 0.2,
               ),
             ),
@@ -217,28 +233,32 @@ class _SplashPageState extends ConsumerState<SplashPage>
     );
   }
 
-  Widget _buildStaticContent() {
+  Widget _buildStaticContent(
+    Color primaryTextColor,
+    Color subtitleColor,
+    bool isDark,
+  ) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildLogoBox(),
+        _buildLogoBox(isDark),
         const SizedBox(height: 24),
-        const Text(
-          'Expense',
+        Text(
+          'SXAN',
           style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w800,
-            color: AppColors.white,
-            letterSpacing: -0.6,
+            fontSize: 38,
+            fontWeight: FontWeight.w900,
+            color: primaryTextColor,
+            letterSpacing: 1.2,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Simple. Smart. Yours.',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: AppColors.lightLavender,
+            color: subtitleColor,
             letterSpacing: 0.2,
           ),
         ),
@@ -246,29 +266,34 @@ class _SplashPageState extends ConsumerState<SplashPage>
     );
   }
 
-  Widget _buildLogoBox() {
+  Widget _buildLogoBox(bool isDark) {
     return Container(
-      width: 88,
-      height: 88,
+      width: 100,
+      height: 100,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.brightViolet, AppColors.primaryPurple],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24.0),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(28.0),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPurple.withValues(alpha: 0.45),
-            blurRadius: 28,
-            offset: const Offset(0, 10),
+            color: AppColors.primaryPurple.withValues(
+              alpha: isDark ? 0.35 : 0.15,
+            ),
+            blurRadius: isDark ? 32 : 24,
+            offset: Offset(0, isDark ? 12 : 6),
           ),
         ],
+        border: Border.all(
+          color: isDark
+              ? AppColors.brightViolet.withValues(alpha: 0.25)
+              : AppColors.primaryPurple.withValues(alpha: 0.12),
+          width: 1.5,
+        ),
       ),
-      child: const Icon(
-        Icons.account_balance_wallet_rounded,
-        size: 44,
-        color: AppColors.white,
+      child: Image.asset(
+        'assets/icon/sxan.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
       ),
     );
   }

@@ -43,6 +43,17 @@ class DeleteTransactionUseCase {
   }
 }
 
+class DeleteTransactionsUseCase {
+  final TransactionRepository _repository;
+  DeleteTransactionsUseCase(this._repository);
+
+  Future<void> execute(List<String> ids) async {
+    await _repository.deleteTransactions(ids);
+  }
+
+  Future<void> call(List<String> ids) => execute(ids);
+}
+
 class GetTransactionUseCase {
   final TransactionRepository _repository;
   GetTransactionUseCase(this._repository);

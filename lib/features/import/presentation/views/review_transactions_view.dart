@@ -554,10 +554,13 @@ class ReviewTransactionsView extends StatelessWidget {
           maxChildSize: 0.95,
           minChildSize: 0.4,
           builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: ListView(
-                controller: scrollController,
+            return SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: ListView(
+                  controller: scrollController,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -644,8 +647,9 @@ class ReviewTransactionsView extends StatelessWidget {
                     ),
                 ],
               ),
-            );
-          },
+            ),
+          );
+        },
         );
       },
     );

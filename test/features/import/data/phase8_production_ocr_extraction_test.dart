@@ -28,6 +28,11 @@ class FakeTxRepo implements TransactionRepository {
   @override
   Future<void> deleteTransaction(String id) async => _list.removeWhere((t) => t.id == id);
   @override
+  Future<void> deleteTransactions(List<String> ids) async {
+    final set = ids.toSet();
+    _list.removeWhere((t) => set.contains(t.id));
+  }
+  @override
   Future<Transaction?> getTransactionById(String id) async =>
       _list.firstWhere((t) => t.id == id, orElse: () => throw StateError('Not found'));
   @override

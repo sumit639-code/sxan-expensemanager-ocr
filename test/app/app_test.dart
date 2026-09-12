@@ -39,7 +39,7 @@ void main() {
       );
 
       // Initial Splash Screen rendering
-      expect(find.text('Expense'), findsOneWidget);
+      expect(find.text('SXAN'), findsOneWidget);
       expect(find.text('Simple. Smart. Yours.'), findsOneWidget);
 
       // Pump past splash delay (1.6s) to transition to Onboarding

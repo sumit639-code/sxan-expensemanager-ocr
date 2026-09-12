@@ -28,6 +28,7 @@ class OnboardingPage extends ConsumerStatefulWidget {
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
   int _currentPage = 0;
   String? _nameError;
 
@@ -55,6 +56,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -134,6 +136,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   setState(() {
                     _currentPage = index;
                   });
+                  if (index == _totalPages - 1) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        _nameFocusNode.requestFocus();
+                      }
+                    });
+                  } else {
+                    _nameFocusNode.unfocus();
+                  }
                 },
                 itemBuilder: (context, index) {
                   if (index < _introPages.length) {
@@ -276,6 +287,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                                     label: 'Your name',
                                     hintText: 'e.g. Alex',
                                     controller: _nameController,
+                                    focusNode: _nameFocusNode,
                                     errorText: _nameError,
                                     prefixIcon: const Icon(
                                       Icons.badge_outlined,

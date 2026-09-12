@@ -1,11 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/analysis/presentation/pages/analysis_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/import/presentation/pages/import_page.dart';
+import '../../features/import/presentation/pages/pending_imports_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/splash_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -85,6 +84,11 @@ final GoRouter appRouter = GoRouter(
           path: '/import',
           name: 'import',
           builder: (context, state) => const ImportPage(),
+        ),
+        GoRoute(
+          path: '/imports/pending',
+          name: 'pendingImports',
+          builder: (context, state) => const PendingImportsPage(),
         ),
       ],
     ),
@@ -235,41 +239,37 @@ class AppShellScaffold extends StatelessWidget {
           // Main page content — fills entire screen
           Positioned.fill(child: child),
 
-          // Floating frosted-glass navigation pill
+          // Floating navigation pill — optimized for 120fps hardware acceleration
           Positioned(
             left: 16,
             right: 16,
             bottom: bottomPadding + 12,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusExtraLarge),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-                child: Container(
-                  height: 74,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.white.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(
-                      AppSpacing.radiusExtraLarge,
+            child: Container(
+              height: 74,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xF5161424)
+                    : const Color(0xFAFFFFFF),
+                borderRadius: BorderRadius.circular(
+                  AppSpacing.radiusExtraLarge,
+                ),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.06),
+                  width: 0.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: isDark ? 0.35 : 0.08,
                     ),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.black.withValues(alpha: 0.06),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.4 : 0.08,
-                        ),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    blurRadius: 18,
+                    offset: const Offset(0, 4),
                   ),
-                  child: Row(
+                ],
+              ),
+              child: Row(
                     children: [
                       // Home
                       Expanded(
@@ -364,10 +364,8 @@ class AppShellScaffold extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

@@ -74,6 +74,8 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/icon/sxan.png
+    - assets/icon/trans.png
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/det_v1.onnx
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/rec_v1.onnx
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/cls_v1.onnx

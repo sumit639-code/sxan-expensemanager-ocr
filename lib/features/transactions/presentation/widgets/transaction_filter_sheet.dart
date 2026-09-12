@@ -5,9 +5,12 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/constants/category_constants.dart';
 import '../../../../shared/enums/transaction_enums.dart';
+import '../../../../shared/models/category_model.dart';
 import '../../domain/entities/transaction_filter.dart';
 
 /// Modal bottom sheet providing granular filtering and sorting options for transactions.
+import '../../../../shared/widgets/app_bottom_sheet.dart';
+
 class TransactionFilterSheet extends StatefulWidget {
   final TransactionFilter initialFilter;
   final ValueChanged<TransactionFilter> onApply;
@@ -22,10 +25,9 @@ class TransactionFilterSheet extends StatefulWidget {
     BuildContext context, {
     required TransactionFilter currentFilter,
   }) {
-    return showModalBottomSheet<TransactionFilter>(
+    return AppBottomSheet.show<TransactionFilter>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => TransactionFilterSheet(
         initialFilter: currentFilter,
         onApply: (newFilter) {
@@ -239,7 +241,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                       _buildSelectableChip(
                         label: 'All Types',
                         isSelected: _selectedType == null,
-                        onTap: () => setState(() => _selectedType = null),
+                        onTap: () {
+                          setState(() {
+                            _selectedType = null;
+                          });
+                        },
                         primaryColor: primaryColor,
                         surfaceColor: surfaceColor,
                         borderColor: borderColor,
@@ -248,7 +254,16 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                       _buildSelectableChip(
                         label: 'Expenses',
                         isSelected: _selectedType == TransactionType.expense,
-                        onTap: () => setState(() => _selectedType = TransactionType.expense),
+                        onTap: () {
+                          setState(() {
+                            _selectedType = TransactionType.expense;
+                            if (_selectedCategoryId != null) {
+                              final isValid = CategoryConstants.expenseCategories
+                                  .any((c) => c.id == _selectedCategoryId);
+                              if (!isValid) _selectedCategoryId = null;
+                            }
+                          });
+                        },
                         primaryColor: primaryColor,
                         surfaceColor: surfaceColor,
                         borderColor: borderColor,
@@ -257,7 +272,16 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                       _buildSelectableChip(
                         label: 'Income',
                         isSelected: _selectedType == TransactionType.income,
-                        onTap: () => setState(() => _selectedType = TransactionType.income),
+                        onTap: () {
+                          setState(() {
+                            _selectedType = TransactionType.income;
+                            if (_selectedCategoryId != null) {
+                              final isValid = CategoryConstants.incomeCategories
+                                  .any((c) => c.id == _selectedCategoryId);
+                              if (!isValid) _selectedCategoryId = null;
+                            }
+                          });
+                        },
                         primaryColor: primaryColor,
                         surfaceColor: surfaceColor,
                         borderColor: borderColor,
@@ -303,33 +327,50 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 3. Category
+                  // 3. Category (Type-Aware)
                   _buildSectionTitle('CATEGORY', secondaryTextColor),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildSelectableChip(
-                        label: 'All Categories',
-                        isSelected: _selectedCategoryId == null,
-                        onTap: () => setState(() => _selectedCategoryId = null),
-                        primaryColor: primaryColor,
-                        surfaceColor: surfaceColor,
-                        borderColor: borderColor,
-                        textColor: textColor,
-                      ),
-                      for (final entry in uniqueCategories.entries)
-                        _buildSelectableChip(
-                          label: entry.value,
-                          isSelected: _selectedCategoryId == entry.key,
-                          onTap: () => setState(() => _selectedCategoryId = entry.key),
-                          primaryColor: primaryColor,
-                          surfaceColor: surfaceColor,
-                          borderColor: borderColor,
-                          textColor: textColor,
-                        ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      final List<Category> cats;
+                      if (_selectedType == TransactionType.expense) {
+                        cats = CategoryConstants.expenseCategories;
+                      } else if (_selectedType == TransactionType.income) {
+                        cats = CategoryConstants.incomeCategories;
+                      } else {
+                        cats = [
+                          ...CategoryConstants.expenseCategories,
+                          ...CategoryConstants.incomeCategories,
+                        ];
+                      }
+
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildSelectableChip(
+                            label: 'All Categories',
+                            isSelected: _selectedCategoryId == null,
+                            onTap: () => setState(() => _selectedCategoryId = null),
+                            primaryColor: primaryColor,
+                            surfaceColor: surfaceColor,
+                            borderColor: borderColor,
+                            textColor: textColor,
+                          ),
+                          for (final cat in cats)
+                            _buildSelectableChip(
+                              label: cat.name,
+                              icon: cat.icon,
+                              isSelected: _selectedCategoryId == cat.id,
+                              onTap: () => setState(() => _selectedCategoryId = cat.id),
+                              primaryColor: primaryColor,
+                              surfaceColor: surfaceColor,
+                              borderColor: borderColor,
+                              textColor: textColor,
+                            ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -464,56 +505,60 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
             ),
           ),
 
-          // Bottom Action Buttons
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: surfaceColor,
-              border: Border(top: BorderSide(color: borderColor)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _reset,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+          // Bottom Action Buttons with Navigation Bar Safe Area
+          SafeArea(
+            top: false,
+            bottom: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                border: Border(top: BorderSide(color: borderColor)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _reset,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: borderColor),
                       ),
-                      side: BorderSide(color: borderColor),
-                    ),
-                    child: Text(
-                      'Reset All',
-                      style: TextStyle(
-                        color: secondaryTextColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton(
-                    onPressed: _apply,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Apply Filters',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                      child: Text(
+                        'Reset All',
+                        style: TextStyle(
+                          color: secondaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      onPressed: _apply,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Apply Filters',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

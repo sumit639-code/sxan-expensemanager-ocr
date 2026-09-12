@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
 import '../../../transactions/domain/entities/transaction_entity.dart';
+import '../../../transactions/domain/services/category_suggestion_service.dart';
 
 /// Origin of a detected duplicate for an [ExtractedTransaction].
 enum DuplicateSource {
@@ -111,6 +112,14 @@ class ExtractedTransaction {
         ? title!.trim()
         : (merchant ?? 'Screenshot Transaction');
 
+    final resolvedCategoryId = (categoryId != null && categoryId!.trim().isNotEmpty)
+        ? categoryId
+        : CategorySuggestionService.suggest(
+            title: effectiveTitle,
+            merchant: merchant,
+            type: type,
+          ).categoryId;
+
     return Transaction(
       id: id,
       type: type,
@@ -118,7 +127,7 @@ class ExtractedTransaction {
       currency: currency,
       title: effectiveTitle,
       merchant: merchant?.trim().isNotEmpty == true ? merchant!.trim() : null,
-      categoryId: categoryId,
+      categoryId: resolvedCategoryId,
       date: date!,
       note: note,
       source: TransactionSource.screenshot,
@@ -198,6 +207,54 @@ class ExtractedTransaction {
       isDuplicate,
       duplicateSource,
       note,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'date': date?.toIso8601String(),
+      'amount': amount,
+      'currency': currency,
+      'title': title,
+      'merchant': merchant,
+      'categoryId': categoryId,
+      'type': type.name,
+      'confidence': confidence,
+      'sourceReference': sourceReference,
+      'rawText': rawText,
+      'isDuplicate': isDuplicate,
+      'duplicateSource': duplicateSource?.name,
+      'note': note,
+    };
+  }
+
+  factory ExtractedTransaction.fromJson(Map<String, dynamic> json) {
+    return ExtractedTransaction(
+      id: json['id'] as String,
+      date: json['date'] != null ? DateTime.parse(json['date'] as String) : null,
+      amount: json['amount'] as int?,
+      currency: (json['currency'] as String?) ?? 'INR',
+      title: json['title'] as String?,
+      merchant: json['merchant'] as String?,
+      categoryId: json['categoryId'] as String?,
+      type: json['type'] != null
+          ? TransactionType.values.firstWhere(
+              (e) => e.name == json['type'],
+              orElse: () => TransactionType.expense,
+            )
+          : TransactionType.expense,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
+      sourceReference: json['sourceReference'] as String?,
+      rawText: json['rawText'] as String?,
+      isDuplicate: json['isDuplicate'] as bool? ?? false,
+      duplicateSource: json['duplicateSource'] != null
+          ? DuplicateSource.values.firstWhere(
+              (e) => e.name == json['duplicateSource'],
+              orElse: () => DuplicateSource.existingDb,
+            )
+          : null,
+      note: json['note'] as String?,
     );
   }
 }

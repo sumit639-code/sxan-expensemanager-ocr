@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:expense_app/app/theme/app_colors.dart';
 import 'package:expense_app/features/analysis/domain/entities/analysis_period.dart';
 
+import 'package:expense_app/shared/widgets/app_bottom_sheet.dart';
+
 /// Modal bottom sheet allowing users to select or customize the analysis time frame.
 class PeriodSelectionSheet extends StatelessWidget {
   final AnalysisPeriod currentPeriod;
@@ -19,9 +21,9 @@ class PeriodSelectionSheet extends StatelessWidget {
     BuildContext context, {
     required AnalysisPeriod currentPeriod,
   }) {
-    return showModalBottomSheet<AnalysisPeriod>(
+    return AppBottomSheet.show<AnalysisPeriod>(
       context: context,
-      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => PeriodSelectionSheet(
         currentPeriod: currentPeriod,
         onPeriodSelected: (period) => Navigator.of(ctx).pop(period),
@@ -67,16 +69,20 @@ class PeriodSelectionSheet extends StatelessWidget {
       AnalysisPeriodType.thisYear,
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,8 +133,10 @@ class PeriodSelectionSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _PeriodTile extends StatelessWidget {

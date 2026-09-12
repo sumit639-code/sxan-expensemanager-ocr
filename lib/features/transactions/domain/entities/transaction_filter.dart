@@ -91,6 +91,7 @@ class TransactionFilter {
   }
 
   bool get isFiltered => activeFilterCount > 0 || searchQuery.trim().isNotEmpty;
+  bool get hasActiveFilters => isFiltered;
 
   /// Returns list of active filter chips for display in the horizontal chip bar.
   List<ActiveFilterChipData> getActiveChips() {

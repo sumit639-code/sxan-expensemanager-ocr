@@ -26,40 +26,7 @@ class DashboardPage extends ConsumerStatefulWidget {
   ConsumerState<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends ConsumerState<DashboardPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
-
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Future<void> _selectPeriod(AnalysisPeriod currentPeriod) async {
     final newPeriod = await PeriodSelectionSheet.show(
@@ -77,7 +44,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     final selectedPeriod = ref.watch(dashboardPeriodProvider);
     final asyncSummary = ref.watch(dashboardDataProvider);
     final dashPrefs = ref.watch(dashboardPreferencesProvider);
-    final disableAnimations = MediaQuery.of(context).disableAnimations;
 
     final bodyWidget = asyncSummary.when(
       data: (summary) {
@@ -194,15 +160,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     return Scaffold(
       body: SafeArea(
-        child: disableAnimations
-            ? bodyWidget
-            : FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: bodyWidget,
-                ),
-              ),
+        child: bodyWidget,
       ),
     );
   }

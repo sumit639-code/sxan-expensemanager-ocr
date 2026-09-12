@@ -63,7 +63,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Expense'), findsOneWidget);
+    expect(find.text('SXAN'), findsOneWidget);
     expect(find.text('Simple. Smart. Yours.'), findsOneWidget);
 
     // Pump past splash timer
