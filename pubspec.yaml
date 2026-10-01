@@ -49,6 +49,7 @@ dependencies:
   http: ^1.3.0
   transaction_ocr_flutter:
     path: packages/transaction_ocr_flutter
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -74,11 +75,14 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/icon/sxan.png
+    - assets/icon/trans.png
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/det_v1.onnx
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/rec_v1.onnx
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/cls_v1.onnx
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/keys_v1.txt
     - packages/transaction_ocr_flutter/assets/models/v1.0.0/rules_manifest.json
+    - assets/sounds/
 
 
   # To add assets to your application, add an assets section, like this:
@@ -116,3 +120,6 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/sxan.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/sxan.png"

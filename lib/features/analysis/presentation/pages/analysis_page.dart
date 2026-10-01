@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:expense_app/app/theme/app_colors.dart';
+import 'package:expense_app/app/theme/app_spacing.dart';
 import 'package:expense_app/features/analysis/domain/entities/analysis_data.dart';
 import 'package:expense_app/features/analysis/presentation/providers/analysis_providers.dart';
 import 'package:expense_app/features/analysis/presentation/widgets/category_breakdown_section.dart';
 import 'package:expense_app/features/analysis/presentation/widgets/period_selection_sheet.dart';
 import 'package:expense_app/features/analysis/presentation/widgets/spending_trend_chart.dart';
 import 'package:expense_app/features/dashboard/presentation/widgets/transaction_tile.dart';
+import 'package:expense_app/shared/widgets/coin_refresh_indicator.dart';
 
 /// Financial Analytics and Insights Dashboard.
 class AnalysisPage extends ConsumerWidget {
@@ -87,81 +89,96 @@ class AnalysisPage extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: asyncAnalysis.when(
-          data: (data) {
-            if (data.periodTransactions.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
+        child: CoinRefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(analysisDataProvider);
+          },
+          child: asyncAnalysis.when(
+            data: (data) {
+              if (data.periodTransactions.isEmpty) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.insights_rounded,
-                          size: 48,
-                          color: primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Not enough data yet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Add a few transactions in ${period.displayLabel} to see your spending insights and trends.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: secondaryTextColor,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => context.push('/add'),
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Add Transaction'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                  child: Container(
+                    height: MediaQuery.sizeOf(context).height * 0.7,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 32,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                          child: Icon(
+                            Icons.insights_rounded,
+                            size: 48,
+                            color: primaryColor,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        Text(
+                          'Not enough data yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add a few transactions in ${period.displayLabel} to see your spending insights and trends.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: secondaryTextColor,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => context.push('/add'),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Add Transaction'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                );
+              }
+
+              final metrics = data.metrics;
+              final comp = data.comparison;
+              final isNetPositive = metrics.netMinor >= 0;
+              final netFormatted = (metrics.netMinor.abs() / 100).toStringAsFixed(0);
+              final incomeFormatted = (metrics.totalIncomeMinor / 100).toStringAsFixed(0);
+              final expenseFormatted = (metrics.totalExpenseMinor / 100).toStringAsFixed(0);
+
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-              );
-            }
-
-            final metrics = data.metrics;
-            final comp = data.comparison;
-            final isNetPositive = metrics.netMinor >= 0;
-            final netFormatted = (metrics.netMinor.abs() / 100).toStringAsFixed(0);
-            final incomeFormatted = (metrics.totalIncomeMinor / 100).toStringAsFixed(0);
-            final expenseFormatted = (metrics.totalExpenseMinor / 100).toStringAsFixed(0);
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                padding: const EdgeInsets.only(
+                  left: 16, right: 16, top: 8,
+                  bottom: AppSpacing.navPillClearance,
+                ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -499,8 +516,9 @@ class AnalysisPage extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionHeader(String title, Color textColor) {
     return Text(

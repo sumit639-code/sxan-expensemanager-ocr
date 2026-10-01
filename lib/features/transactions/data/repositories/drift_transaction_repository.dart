@@ -67,6 +67,14 @@ class DriftTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<void> deleteTransactions(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await (_db.delete(
+      _db.transactions,
+    )..where((tbl) => tbl.id.isIn(ids))).go();
+  }
+
+  @override
   Future<List<Transaction>> getTransactionsByDateRange(
     DateTime start,
     DateTime end,

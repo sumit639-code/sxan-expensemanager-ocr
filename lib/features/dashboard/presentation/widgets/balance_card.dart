@@ -1,51 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/utils/money_utils.dart';
+import '../../../analysis/domain/entities/analysis_data.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
 
-/// Prominent gradient Balance Card featuring financial totals and decorative curve.
-class BalanceCard extends StatelessWidget {
-  final int totalBalanceMinorUnits;
-  final double monthlyChangePercentage;
+/// Prominent gradient Balance Card featuring Net Balance / Cash Flow,
+/// period comparison badge, and embedded Income/Expense breakdown.
+class BalanceCard extends ConsumerWidget {
+  final int netCashFlowMinor;
+  final int incomeMinor;
+  final int expenseMinor;
+  final PeriodComparison? comparison;
 
   const BalanceCard({
     super.key,
-    required this.totalBalanceMinorUnits,
-    required this.monthlyChangePercentage,
+    required this.netCashFlowMinor,
+    this.incomeMinor = 0,
+    this.expenseMinor = 0,
+    this.comparison,
   });
 
+  /// Backward-compatible constructor
+  factory BalanceCard.legacy({
+    Key? key,
+    required int totalBalanceMinorUnits,
+    required double monthlyChangePercentage,
+  }) {
+    return BalanceCard(
+      key: key,
+      netCashFlowMinor: totalBalanceMinorUnits,
+      comparison: PeriodComparison(
+        prevTotalIncomeMinor: 0,
+        prevTotalExpenseMinor: 0,
+        expensePercentageChange: monthlyChangePercentage,
+        expenseComparisonText: '${monthlyChangePercentage.toStringAsFixed(0)}% this month',
+        isExpenseHigher: monthlyChangePercentage > 0,
+        isRoughlyUnchanged: monthlyChangePercentage.abs() < 1.0,
+        hasPreviousData: true,
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accent = ref.watch(appAccentColorProvider);
+    final rounding = ref.watch(appCardRoundingProvider);
+    final cardRadius = BorderRadius.circular((rounding.radius * 1.3).clamp(12.0, 32.0));
+
+    final isNegative = netCashFlowMinor < 0;
     final formattedBalance = MoneyUtils.formatMinorUnits(
-      totalBalanceMinorUnits,
+      netCashFlowMinor.abs(),
+      currency: 'INR',
+      symbol: '₹',
+    );
+    final formattedIncome = MoneyUtils.formatMinorUnits(
+      incomeMinor,
+      currency: 'INR',
+      symbol: '₹',
+    );
+    final formattedExpense = MoneyUtils.formatMinorUnits(
+      expenseMinor,
       currency: 'INR',
       symbol: '₹',
     );
 
+    final comp = comparison;
+    String badgeText = 'No previous data';
+    IconData? badgeIcon;
+
+    if (comp != null && comp.hasPreviousData) {
+      badgeText = comp.expenseComparisonText;
+      if (comp.expensePercentageChange != null && !comp.isRoughlyUnchanged) {
+        badgeIcon = comp.isExpenseHigher
+            ? Icons.arrow_upward_rounded
+            : Icons.arrow_downward_rounded;
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            AppColors.deepPurple,
-            AppColors.primaryPurple,
-            AppColors.brightViolet,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: AppSpacing.borderRadiusExtraLarge,
+        gradient: accent.gradient,
+        borderRadius: cardRadius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryPurple.withValues(alpha: 0.35),
+            color: accent.primary.withValues(alpha: 0.35),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: AppSpacing.borderRadiusExtraLarge,
+        borderRadius: cardRadius,
         child: Stack(
           children: [
             // Background Decorative Wave Custom Painter
@@ -61,16 +110,16 @@ class BalanceCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Total Balance',
+                        'Net Balance',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.lightLavender,
-                          letterSpacing: 0.1,
+                          letterSpacing: 0.2,
                         ),
                       ),
 
-                      // Monthly Percentage Badge
+                      // Period Comparison Badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -83,14 +132,16 @@ class BalanceCard extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.arrow_upward_rounded,
-                              size: 12,
-                              color: AppColors.white,
-                            ),
-                            const SizedBox(width: 4),
+                            if (badgeIcon != null) ...[
+                              Icon(
+                                badgeIcon,
+                                size: 12,
+                                color: AppColors.white,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
                             Text(
-                              '${monthlyChangePercentage.toStringAsFixed(0)}% this month',
+                              badgeText,
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -102,9 +153,11 @@ class BalanceCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+
+                  // Big Financial Net Amount
                   Text(
-                    formattedBalance,
+                    '${isNegative ? '-' : ''}$formattedBalance',
                     style: const TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
@@ -112,6 +165,105 @@ class BalanceCard extends StatelessWidget {
                       letterSpacing: -0.8,
                       height: 1.1,
                     ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Divider Line
+                  Container(
+                    height: 1,
+                    color: AppColors.white.withValues(alpha: 0.15),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Income & Expenses Split Sub-row
+                  Row(
+                    children: [
+                      // Income Column
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.white.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.south_west_rounded,
+                                size: 14,
+                                color: AppColors.successGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Income',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.lightLavender,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  formattedIncome,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Expenses Column
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.white.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.north_east_rounded,
+                                size: 14,
+                                color: AppColors.errorRed,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Expenses',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.lightLavender,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  formattedExpense,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

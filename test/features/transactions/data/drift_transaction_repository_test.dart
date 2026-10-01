@@ -69,11 +69,26 @@ void main() {
       final fetched = await repository.getTransactionById('tx-1');
       expect(fetched?.amount, 50000);
 
-      // 5. Delete
+      // 5. Delete single
       await repository.deleteTransaction('tx-1');
       final afterDelete = await repository.getAllTransactions();
       expect(afterDelete.length, 1);
       expect(afterDelete.first.id, 'tx-2');
+
+      // 6. Bulk Delete
+      final tx3 = tx1.copyWith(id: 'tx-3');
+      final tx4 = tx1.copyWith(id: 'tx-4');
+      await repository.addTransactions([tx3, tx4]);
+      expect((await repository.getAllTransactions()).length, 3);
+
+      await repository.deleteTransactions(['tx-2', 'tx-3']);
+      final remaining = await repository.getAllTransactions();
+      expect(remaining.length, 1);
+      expect(remaining.first.id, 'tx-4');
+
+      // 7. Bulk Delete empty list does not fail
+      await repository.deleteTransactions([]);
+      expect((await repository.getAllTransactions()).length, 1);
     },
   );
 }

@@ -52,6 +52,14 @@ class BoundingBox {
   }
 
   factory BoundingBox.fromJson(List<dynamic> json) {
+    if (json.length == 4 && json[0] is num) {
+      return BoundingBox.fromRect(
+        (json[0] as num).toDouble(),
+        (json[1] as num).toDouble(),
+        (json[2] as num).toDouble(),
+        (json[3] as num).toDouble(),
+      );
+    }
     final pts = json.map((p) => Point2D.fromJson(p as List<dynamic>)).toList();
     return BoundingBox(pts);
   }

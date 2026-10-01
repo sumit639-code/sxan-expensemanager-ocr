@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:transaction_ocr_flutter/transaction_ocr_flutter.dart' as pkg;
 
+import '../../../settings/data/services/settings_service.dart';
 import '../../../settings/domain/entities/app_settings.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
@@ -16,7 +17,10 @@ import '../../data/services/mlkit_ocr_engine.dart';
 import '../../data/services/python_api_transaction_extractor.dart';
 import '../../data/services/real_transaction_extractor.dart';
 
+import '../../data/repositories/pending_import_repository.dart';
+import '../../data/services/bank_sms_service.dart';
 import '../../domain/entities/extracted_transaction.dart';
+import '../../domain/entities/pending_import.dart';
 import '../../domain/services/duplicate_detector.dart';
 import '../../domain/services/ocr_engine.dart';
 import '../../domain/services/transaction_extractor.dart';
@@ -24,6 +28,24 @@ import '../../domain/services/transaction_parser.dart';
 import '../../domain/usecases/confirm_import_usecase.dart';
 import '../../domain/usecases/process_screenshots_usecase.dart';
 import 'import_state.dart';
+
+/// Provider for the [BankSmsService].
+final bankSmsServiceProvider = Provider<BankSmsService>((ref) {
+  final repo = ref.watch(pendingImportRepositoryProvider);
+  final duplicateDetector = ref.watch(duplicateDetectorProvider);
+  SettingsService? settingsService;
+  try {
+    settingsService = ref.watch(settingsServiceProvider);
+  } catch (_) {
+    // Graceful fallback for test environments without SharedPreferences override
+  }
+  final service = BankSmsService(
+    repository: repo,
+    duplicateDetector: duplicateDetector,
+    settingsService: settingsService,
+  );
+  return service;
+});
 
 /// Provider for the OCR API configuration (development bridge).
 final ocrApiConfigProvider = Provider<OcrApiConfig>((ref) {
@@ -167,17 +189,23 @@ class ImportController extends StateNotifier<ImportState> {
   final ImagePreprocessor _preprocessor;
   final ProcessScreenshotsUseCase _processUseCase;
   final ConfirmImportUseCase _confirmUseCase;
+  final PendingImportRepository? _pendingImportRepo;
 
   ImportController({
     required ImagePickerService pickerService,
     required ImagePreprocessor preprocessor,
     required ProcessScreenshotsUseCase processUseCase,
     required ConfirmImportUseCase confirmUseCase,
+    PendingImportRepository? pendingImportRepo,
   }) : _pickerService = pickerService,
        _preprocessor = preprocessor,
        _processUseCase = processUseCase,
        _confirmUseCase = confirmUseCase,
+       _pendingImportRepo = pendingImportRepo,
        super(const ImportState());
+
+  /// Current immutable state of the import pipeline.
+  ImportState get currentState => state;
 
   /// Opens gallery to pick one or more screenshots.
   Future<void> pickScreenshots() async {
@@ -236,6 +264,46 @@ class ImportController extends StateNotifier<ImportState> {
     );
   }
 
+  /// Sets up state for reviewing an existing PendingImport.
+  void loadPendingImport(PendingImport pendingImport) {
+    loadMultiplePendingImports([pendingImport]);
+  }
+
+  /// Sets up state for reviewing multiple PendingImports simultaneously in one unified session.
+  void loadMultiplePendingImports(List<PendingImport> pendingImports) {
+    if (pendingImports.isEmpty) return;
+
+    final allTransactions = <ExtractedTransaction>[];
+    final allImages = <String>[];
+    final pendingIds = <String>[];
+    final defaultSelectedIds = <String>{};
+
+    for (final pi in pendingImports) {
+      pendingIds.add(pi.id);
+      allImages.addAll(pi.imagePaths);
+      allTransactions.addAll(pi.extractedTransactions);
+      for (final tx in pi.extractedTransactions) {
+        if (!tx.isDuplicate) {
+          defaultSelectedIds.add(tx.id);
+        }
+      }
+    }
+
+    if (defaultSelectedIds.isEmpty && allTransactions.isNotEmpty) {
+      defaultSelectedIds.addAll(allTransactions.map((tx) => tx.id));
+    }
+
+    state = state.copyWith(
+      status: ImportStatus.review,
+      selectedImagePaths: allImages,
+      extractedTransactions: allTransactions,
+      selectedTransactionIds: defaultSelectedIds,
+      errors: const [],
+      fatalErrorMessage: null,
+      currentPendingImportIds: pendingIds,
+    );
+  }
+
   /// Removes a single screenshot from the preview list.
   void removeScreenshot(String path) {
     final updated = List<String>.from(state.selectedImagePaths)..remove(path);
@@ -257,16 +325,33 @@ class ImportController extends StateNotifier<ImportState> {
       errors: const [],
     );
 
+    // Throttle progress updates to prevent flooding the widget rebuild queue
+    // when ONNX inference fires many rapid onProgress callbacks.
+    DateTime lastProgressUpdate = DateTime.now();
+    const progressThrottleMs = 150;
+
     try {
+      final imagePaths = List<String>.from(state.selectedImagePaths);
+
       final result = await _processUseCase.execute(
-        state.selectedImagePaths,
+        imagePaths,
         onProgress: (step, progress) {
-          state = state.copyWith(
-            currentProcessingStep: step,
-            processingProgress: progress,
-          );
+          if (!mounted) return;
+          final now = DateTime.now();
+          final elapsed = now.difference(lastProgressUpdate).inMilliseconds;
+          // Always update on significant milestones, throttle the rest
+          final isSignificant = progress >= 0.95 || progress <= 0.06;
+          if (elapsed >= progressThrottleMs || isSignificant) {
+            lastProgressUpdate = now;
+            state = state.copyWith(
+              currentProcessingStep: step,
+              processingProgress: progress,
+            );
+          }
         },
       );
+
+      if (!mounted) return;
 
       // Default selection: select all non-duplicates. Duplicates are unselected by default.
       final defaultSelectedIds = <String>{};
@@ -288,6 +373,7 @@ class ImportController extends StateNotifier<ImportState> {
       if (kDebugMode) {
         debugPrint('[IMPORT ERROR] Pipeline failure: $e\n$stackTrace');
       }
+      if (!mounted) return;
       state = state.copyWith(
         status: ImportStatus.error,
         fatalErrorMessage: 'An error occurred during processing: $e',
@@ -356,35 +442,97 @@ class ImportController extends StateNotifier<ImportState> {
     final toSave = state.selectedTransactions;
     if (toSave.isEmpty) return false;
 
+    final totalAmount = state.selectedTotalAmount;
+    final pendingIds = List<String>.from(state.currentPendingImportIds);
+
     try {
       final saved = await _confirmUseCase.execute(toSave);
+      if (!mounted) return false;
+
+      // Clean up inbox pending imports now that transactions are reviewed & saved
+      if (_pendingImportRepo != null) {
+        for (final pendingId in pendingIds) {
+          try {
+            await _pendingImportRepo.delete(pendingId, cleanupImages: true);
+          } catch (e) {
+            debugPrint('Error cleaning up pending import $pendingId: $e');
+          }
+        }
+      }
+
       state = state.copyWith(
         status: ImportStatus.completed,
         importedCount: saved.length,
+        importedTotalAmount: totalAmount,
+        clearPendingImportId: true,
       );
       return true;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         status: ImportStatus.error,
-        fatalErrorMessage: 'Failed to save imported transactions: ',
+        fatalErrorMessage: 'Failed to save imported transactions: $e',
       );
       return false;
     }
   }
 
+  /// Directly commits all valid, non-duplicate transactions from multiple ready
+  /// pending imports into SQLite and clears them from storage.
+  Future<int> bulkConfirmPendingImports(List<PendingImport> pendingImports) async {
+    if (pendingImports.isEmpty) return 0;
+
+    final allTransactions = <ExtractedTransaction>[];
+    for (final pi in pendingImports) {
+      for (final tx in pi.extractedTransactions) {
+        if (!tx.isDuplicate && tx.isValidForImport) {
+          allTransactions.add(tx);
+        }
+      }
+    }
+
+    if (allTransactions.isEmpty) return 0;
+
+    try {
+      final saved = await _confirmUseCase.execute(allTransactions);
+
+      if (_pendingImportRepo != null) {
+        for (final pi in pendingImports) {
+          try {
+            await _pendingImportRepo.delete(pi.id, cleanupImages: true);
+          } catch (e) {
+            debugPrint('Error cleaning up pending import ${pi.id}: $e');
+          }
+        }
+      }
+
+      return saved.length;
+    } catch (e) {
+      debugPrint('[ImportController] bulkConfirmPendingImports error: $e');
+      return 0;
+    }
+  }
+
   /// Resets the import flow back to initial state.
   void reset() {
+    if (!mounted) return;
     state = const ImportState();
   }
 }
 
 /// Provider for [ImportController] and [ImportState].
+///
+/// NOT auto-disposed: the import flow is a multi-step workflow with long-running
+/// async OCR operations. Auto-dispose can kill the notifier mid-processing,
+/// causing state-setter crashes. The controller is manually [reset()] when the
+/// user finishes or exits the import flow.
 final importControllerProvider =
-    StateNotifierProvider.autoDispose<ImportController, ImportState>((ref) {
+    StateNotifierProvider<ImportController, ImportState>((ref) {
       return ImportController(
         pickerService: ref.watch(imagePickerServiceProvider),
         preprocessor: ref.watch(imagePreprocessorProvider),
         processUseCase: ref.watch(processScreenshotsUseCaseProvider),
         confirmUseCase: ref.watch(confirmImportUseCaseProvider),
+        pendingImportRepo: ref.watch(pendingImportRepositoryProvider),
       );
     });

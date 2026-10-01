@@ -1,4 +1,5 @@
-import '../../../../shared/enums/transaction_enums.dart';
+import 'package:expense_app/features/analysis/domain/entities/analysis_period.dart';
+import 'package:expense_app/features/analysis/domain/services/analysis_calculator.dart';
 import '../../../dashboard/domain/models/dashboard_summary.dart';
 import '../entities/transaction_entity.dart';
 import '../repositories/transaction_repository.dart';
@@ -42,6 +43,28 @@ class DeleteTransactionUseCase {
   }
 }
 
+class DeleteTransactionsUseCase {
+  final TransactionRepository _repository;
+  DeleteTransactionsUseCase(this._repository);
+
+  Future<void> execute(List<String> ids) async {
+    await _repository.deleteTransactions(ids);
+  }
+
+  Future<void> call(List<String> ids) => execute(ids);
+}
+
+class ClearAllTransactionsUseCase {
+  final TransactionRepository _repository;
+  ClearAllTransactionsUseCase(this._repository);
+
+  Future<void> execute() async {
+    await _repository.clearAllTransactions();
+  }
+
+  Future<void> call() => execute();
+}
+
 class GetTransactionUseCase {
   final TransactionRepository _repository;
   GetTransactionUseCase(this._repository);
@@ -64,32 +87,65 @@ class GetMonthlySummaryUseCase {
   final TransactionRepository _repository;
   GetMonthlySummaryUseCase(this._repository);
 
-  Future<DashboardSummary> execute() async {
+  Future<DashboardSummary> execute({AnalysisPeriod? period}) async {
     final transactions = await _repository.getAllTransactions();
-    return calculateSummary(transactions);
+    return calculateSummary(transactions, period: period);
   }
 
-  static DashboardSummary calculateSummary(List<Transaction> transactions) {
-    int totalIncome = 0;
-    int totalExpense = 0;
+  static DashboardSummary calculateSummary(
+    List<Transaction> allTransactions, {
+    AnalysisPeriod? period,
+    DateTime? referenceDate,
+  }) {
+    final targetPeriod = period ??
+        AnalysisPeriod.fromType(
+          AnalysisPeriodType.thisMonth,
+          referenceDate: referenceDate,
+        );
+    final now = referenceDate ?? DateTime.now();
+    final isDatabaseEmpty = allTransactions.isEmpty;
 
-    for (final tx in transactions) {
-      if (tx.type == TransactionType.income) {
-        totalIncome += tx.amount;
-      } else {
-        totalExpense += tx.amount;
+    // Pure deterministic calculation from SQLite transactions
+    final analysis = AnalysisCalculator.calculate(
+      allTransactions: allTransactions,
+      period: targetPeriod,
+      referenceDate: now,
+    );
+
+    // Recent transactions sorted newest first, top 5
+    final sortedAll = List<Transaction>.from(allTransactions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final recent = sortedAll.take(5).toList();
+
+    // Average daily spending (calendar days elapsed in period)
+    int avgDailySpending = 0;
+    final totalExpense = analysis.metrics.totalExpenseMinor;
+    if (totalExpense > 0) {
+      final totalCalendarDays =
+          targetPeriod.endDate.difference(targetPeriod.startDate).inDays + 1;
+      int daysElapsed = totalCalendarDays;
+      if (!now.isBefore(targetPeriod.startDate) &&
+          !now.isAfter(targetPeriod.endDate)) {
+        daysElapsed = now.difference(targetPeriod.startDate).inDays + 1;
       }
+      if (daysElapsed <= 0) daysElapsed = 1;
+      avgDailySpending = (totalExpense / daysElapsed).round();
     }
 
-    final totalBalance = totalIncome - totalExpense;
-    final recent = transactions.take(4).toList();
-
     return DashboardSummary(
-      totalBalance: totalBalance,
-      incomeTotal: totalIncome,
-      expenseTotal: totalExpense,
-      monthlyChangePercentage: 12.0,
+      period: targetPeriod,
+      netCashFlow: analysis.metrics.netMinor,
+      incomeTotal: analysis.metrics.totalIncomeMinor,
+      expenseTotal: analysis.metrics.totalExpenseMinor,
+      comparison: analysis.comparison,
+      trendBuckets: analysis.trendBuckets,
+      categoryBreakdown: analysis.categoryBreakdown,
       recentTransactions: recent,
+      largestExpense: analysis.metrics.largestExpenseTransaction,
+      averageDailySpending: avgDailySpending,
+      insights: analysis.insights,
+      isDatabaseEmpty: isDatabaseEmpty,
+      isPeriodEmpty: analysis.periodTransactions.isEmpty,
     );
   }
 }

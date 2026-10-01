@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
@@ -7,6 +10,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
 import '../../domain/entities/extracted_transaction.dart';
+import 'screenshot_viewer_modal.dart';
 
 /// List tile representing an extracted transaction during review.
 ///
@@ -20,6 +24,7 @@ class ExtractedTransactionTile extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback? onKeepDuplicate;
   final VoidCallback? onSkipDuplicate;
+  final VoidCallback? onViewScreenshot;
 
   const ExtractedTransactionTile({
     super.key,
@@ -30,6 +35,7 @@ class ExtractedTransactionTile extends StatelessWidget {
     required this.onDelete,
     this.onKeepDuplicate,
     this.onSkipDuplicate,
+    this.onViewScreenshot,
   });
 
   @override
@@ -104,9 +110,9 @@ class ExtractedTransactionTile extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      transaction.duplicateSource == DuplicateSource.existingDb
-                          ? 'Possible duplicate (already in database)'
-                          : 'Duplicate within this import',
+                      transaction.duplicateSource == DuplicateSource.intraBatch
+                          ? 'Possible duplicate (in this batch)'
+                          : 'Possible duplicate',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -119,11 +125,11 @@ class ExtractedTransactionTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       child: Text(
-                        isSelected ? 'Skip' : 'Keep',
+                        isSelected ? 'Skip' : 'Import anyway',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -144,22 +150,42 @@ class ExtractedTransactionTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Checkbox
-                  Checkbox(
-                    value: isSelected,
-                    onChanged: onToggle,
-                    activeColor: AppColors.primaryPurple,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                  Row(
+                children: [
+                  // Checkbox with accessible, comfortable 44x44 touch target
+                  Semantics(
+                    label: 'Select $displayTitle, $formattedAmount',
+                    checked: isSelected,
+                    button: true,
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onToggle(!isSelected);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: Checkbox(
+                          value: isSelected,
+                          onChanged: onToggle,
+                          activeColor: AppColors.primaryPurple,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
 
                   // Category/Merchant Icon
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: isIncome
                           ? AppColors.successGreen.withValues(alpha: 0.12)
@@ -197,26 +223,9 @@ class ExtractedTransactionTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (transaction.needsReview) ...[
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Needs review',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ),
+                            if (_buildConfidenceBadge(isDark) != null) ...[
+                              const SizedBox(width: 6),
+                              _buildConfidenceBadge(isDark)!,
                             ],
                           ],
                         ),
@@ -224,7 +233,7 @@ class ExtractedTransactionTile extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              categoryLabel,
+                              displayDate,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -238,30 +247,93 @@ class ExtractedTransactionTile extends StatelessWidget {
                               style: TextStyle(color: AppColors.gray400),
                             ),
                             Text(
-                              displayDate,
+                              isIncome ? 'Income' : 'Expense',
                               style: TextStyle(
                                 fontSize: 12,
+                                fontWeight: FontWeight.w500,
                                 color: isDark
                                     ? AppColors.darkTextSecondary
-                                    : AppColors.gray500,
+                                    : AppColors.gray600,
                               ),
                             ),
+                            if (categoryLabel != 'Uncategorized') ...[
+                              const Text(
+                                ' · ',
+                                style: TextStyle(color: AppColors.gray400),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  categoryLabel,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.gray500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
+                        if (transaction.warnings.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 2,
+                            children: transaction.warnings.map((w) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.amber.withValues(alpha: 0.4),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 10,
+                                      color: Colors.amber,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      w,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.amber[300]
+                                            : Colors.amber[900],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ],
                     ),
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
 
                   // Amount & Edit hint
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${isIncome ? '+' : '-'}$formattedAmount',
+                        '${isIncome ? '+' : ''}$formattedAmount',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: isIncome
                               ? AppColors.successGreen
@@ -274,6 +346,51 @@ class ExtractedTransactionTile extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (onViewScreenshot != null ||
+                              (transaction.sourceReference != null &&
+                                  File(transaction.sourceReference!).existsSync())) ...[
+                            InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                if (onViewScreenshot != null) {
+                                  onViewScreenshot!();
+                                } else if (transaction.sourceReference != null) {
+                                  ScreenshotViewerModal.show(
+                                    context,
+                                    imagePaths: [transaction.sourceReference!],
+                                    title: displayTitle,
+                                  );
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.image_search_rounded,
+                                      size: 13,
+                                      color: AppColors.primaryPurple,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      'Receipt',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primaryPurple,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
                           Icon(
                             Icons.edit_outlined,
                             size: 13,
@@ -295,6 +412,70 @@ class ExtractedTransactionTile extends StatelessWidget {
                       ),
                     ],
                   ),
+                ],
+              ),
+              if (transaction.note != null && transaction.note!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.25)
+                            : AppColors.gray100.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : AppColors.lightBorder,
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.notes_rounded,
+                                size: 13,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.gray600,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Note / Full Message',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.gray600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            transaction.note!.trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary.withValues(alpha: 0.95)
+                                  : AppColors.lightTextPrimary,
+                            ),
+                            maxLines: 8,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -357,6 +538,43 @@ class ExtractedTransactionTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget? _buildConfidenceBadge(bool isDark) {
+    if (transaction.confidence <= 0.60 || transaction.needsReview || transaction.amount == null || transaction.date == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          'Needs review',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Colors.amber,
+          ),
+        ),
+      );
+    } else if (transaction.confidence < 0.85) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.primaryPurple.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          'Review suggested',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.lightLavender : AppColors.primaryPurple,
+          ),
+        ),
+      );
+    }
+    return null;
   }
 
   static void _showRawOcrDialog(

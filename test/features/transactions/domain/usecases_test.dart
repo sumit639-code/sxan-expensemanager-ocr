@@ -23,6 +23,12 @@ class FakeTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<void> deleteTransactions(List<String> ids) async {
+    final set = ids.toSet();
+    _items.removeWhere((item) => set.contains(item.id));
+  }
+
+  @override
   Future<List<Transaction>> getAllTransactions() async => _items;
 
   @override

@@ -352,5 +352,131 @@ void main() {
 
       tempDir.deleteSync(recursive: true);
     });
+
+    test('5. Parses compact dates like "1August" and "3August" accurately without defaulting to today', () async {
+      final tempDir = Directory.systemTemp.createTempSync('ocr_test_compact_dates');
+      final testFile = File('${tempDir.path}/august_test.png')..writeAsBytesSync([0x89, 0x50, 0x4E, 0x47]);
+
+      final mockEngine = MockOcrEngine(
+        onExtract: (bytes, filename) {
+          return pkg.OcrResult(
+            success: true,
+            filename: filename,
+            width: 462,
+            height: 1024,
+            engine: 'RapidOCR-ONNX-Mobile',
+            itemsCount: 6,
+            items: const [],
+            pipelineVersion: 'V2',
+            transactionCandidates: const [
+              pkg.ExtractedTransaction(
+                amountTextRaw: '₹160',
+                amountTextNormalized: '₹160',
+                amountValue: 160,
+                amountMinorUnits: 16000,
+                amountConfidence: 0.95,
+                merchantText: 'MsSatyam ServiceStatio',
+                dateText: '3August',
+                transactionType: 'expense',
+                groupingConfidence: 0.95,
+              ),
+              pkg.ExtractedTransaction(
+                amountTextRaw: '₹40',
+                amountTextNormalized: '₹40',
+                amountValue: 40,
+                amountMinorUnits: 4000,
+                amountConfidence: 0.95,
+                merchantText: 'SAI HANUMANT FOODS',
+                dateText: '1August',
+                transactionType: 'expense',
+                groupingConfidence: 0.95,
+              ),
+            ],
+            transactionCandidatesCount: 2,
+          );
+        },
+      );
+
+      final ocrService = pkg.TransactionOcr(engine: mockEngine);
+      final extractor = LocalTransactionOcrExtractor(ocrService: ocrService);
+
+      final result = await extractor.extractTransactions([testFile.path]);
+      expect(result.transactions.length, equals(2));
+
+      final tx1 = result.transactions[0];
+      expect(tx1.date?.month, equals(8));
+      expect(tx1.date?.day, equals(3));
+
+      final tx2 = result.transactions[1];
+      expect(tx2.date?.month, equals(8));
+      expect(tx2.date?.day, equals(1));
+
+      tempDir.deleteSync(recursive: true);
+    });
+
+    test('6. Contextually inherits date from neighboring transaction when a transaction date is cut off', () async {
+      final tempDir = Directory.systemTemp.createTempSync('ocr_test_cutoff_date');
+      final testFile = File('${tempDir.path}/cutoff_test.png')..writeAsBytesSync([0x89, 0x50, 0x4E, 0x47]);
+
+      final mockEngine = MockOcrEngine(
+        onExtract: (bytes, filename) {
+          return pkg.OcrResult(
+            success: true,
+            filename: filename,
+            width: 462,
+            height: 1024,
+            engine: 'RapidOCR-ONNX-Mobile',
+            itemsCount: 4,
+            items: const [],
+            pipelineVersion: 'V2',
+            transactionCandidates: const [
+              pkg.ExtractedTransaction(
+                amountTextRaw: '₹50',
+                amountTextNormalized: '₹50',
+                amountValue: 50,
+                amountMinorUnits: 5000,
+                amountConfidence: 0.95,
+                merchantText: 'RAJ DESHLAHRE',
+                dateText: '1August',
+                transactionType: 'expense',
+                groupingConfidence: 0.95,
+              ),
+              pkg.ExtractedTransaction(
+                amountTextRaw: '₹30',
+                amountTextNormalized: '₹30',
+                amountValue: 30,
+                amountMinorUnits: 3000,
+                amountConfidence: 0.90,
+                merchantText: 'NEW BAL DHABA',
+                dateText: null, // Cut off at screen edge
+                warnings: ['Date not detected'],
+                transactionType: 'expense',
+                groupingConfidence: 0.85,
+              ),
+            ],
+            transactionCandidatesCount: 2,
+          );
+        },
+      );
+
+      final ocrService = pkg.TransactionOcr(engine: mockEngine);
+      final extractor = LocalTransactionOcrExtractor(ocrService: ocrService);
+
+      final result = await extractor.extractTransactions([testFile.path]);
+      expect(result.transactions.length, equals(2));
+
+      final tx1 = result.transactions[0];
+      expect(tx1.date?.month, equals(8));
+      expect(tx1.date?.day, equals(1));
+
+      final tx2 = result.transactions[1];
+      // Inherited from preceding August transaction instead of defaulting to today!
+      expect(tx2.date?.month, equals(8));
+      expect(tx2.date?.day, equals(1));
+      // 'Date not detected' warning should be cleared
+      expect(tx2.note, isNull);
+
+      tempDir.deleteSync(recursive: true);
+    });
   });
 }

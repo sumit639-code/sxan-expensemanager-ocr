@@ -42,6 +42,7 @@ class ProcessScreenshotsUseCase {
       successfulImages: rawResult.successfulImages,
       failedImages: rawResult.failedImages,
       errors: rawResult.errors,
+      debugOcrText: rawResult.debugOcrText,
     );
   }
 }

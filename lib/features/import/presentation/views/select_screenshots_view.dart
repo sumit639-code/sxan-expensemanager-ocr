@@ -27,7 +27,10 @@ class SelectScreenshotsView extends ConsumerWidget {
     final isOffline = ocrSettings.engineMode == OcrEngineMode.offline;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: AppSpacing.navPillClearance,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

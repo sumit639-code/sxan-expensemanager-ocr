@@ -33,13 +33,35 @@ enum AppThemeMode {
 
 /// Curated high-contrast accent colors that harmonize with the design tokens.
 enum AppAccentColor {
+  violet(
+    'violet',
+    'Royal Violet',
+    Color(0xFF8B5CF6),
+    Color(0xFFC4B5FD),
+    LinearGradient(
+      colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+  ),
   purple(
     'purple',
-    'Royal Violet',
+    'Brand Purple',
     Color(0xFF6C5CE7),
     Color(0xFFA29BFE),
     LinearGradient(
       colors: [Color(0xFF8E7CFF), Color(0xFF6C5CE7)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+  ),
+  indigo(
+    'indigo',
+    'Electric Indigo',
+    Color(0xFF6366F1),
+    Color(0xFFA5B4FC),
+    LinearGradient(
+      colors: [Color(0xFF818CF8), Color(0xFF4F46E5)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
@@ -55,13 +77,24 @@ enum AppAccentColor {
       end: Alignment.bottomRight,
     ),
   ),
-  emerald(
-    'emerald',
-    'Emerald Green',
-    Color(0xFF00B894),
-    Color(0xFF55EFC4),
+  teal(
+    'teal',
+    'Vibrant Teal',
+    Color(0xFF14B8A6),
+    Color(0xFF5EEAD4),
     LinearGradient(
-      colors: [Color(0xFF55EFC4), Color(0xFF00B894)],
+      colors: [Color(0xFF2DD4BF), Color(0xFF0D9488)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+  ),
+  green(
+    'green',
+    'Emerald Green',
+    Color(0xFF10B981),
+    Color(0xFF6EE7B7),
+    LinearGradient(
+      colors: [Color(0xFF34D399), Color(0xFF059669)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
@@ -69,21 +102,21 @@ enum AppAccentColor {
   orange(
     'orange',
     'Sunset Orange',
-    Color(0xFFE17055),
-    Color(0xFFFAB1A0),
+    Color(0xFFF97316),
+    Color(0xFFFDBA74),
     LinearGradient(
-      colors: [Color(0xFFFDCB6E), Color(0xFFE17055)],
+      colors: [Color(0xFFFB923C), Color(0xFFEA580C)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
   ),
   rose(
     'rose',
-    'Vibrant Rose',
-    Color(0xFFE84393),
-    Color(0xFFFD79A8),
+    'Radiant Rose',
+    Color(0xFFF43F5E),
+    Color(0xFFFDA4AF),
     LinearGradient(
-      colors: [Color(0xFFFD79A8), Color(0xFFE84393)],
+      colors: [Color(0xFFFB7185), Color(0xFFE11D48)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
@@ -104,9 +137,171 @@ enum AppAccentColor {
   );
 
   static AppAccentColor fromString(String? val) {
+    if (val == 'emerald') return AppAccentColor.green;
     return AppAccentColor.values.firstWhere(
       (e) => e.value == val,
       orElse: () => AppAccentColor.purple,
+    );
+  }
+}
+
+/// Curated typography presets for app-wide font customization.
+enum AppFontPreset {
+  modern(
+    'modern',
+    'Modern Sans',
+    'sans-serif',
+    FontWeight.w700,
+    FontWeight.w400,
+    0.0,
+    'Clean, balanced neo-grotesque design',
+    Icons.font_download_outlined,
+  ),
+  bold(
+    'bold',
+    'Bold Impact',
+    'sans-serif',
+    FontWeight.w900,
+    FontWeight.w500,
+    -0.5,
+    'Punchy, heavyweight high-contrast display',
+    Icons.format_bold_rounded,
+  ),
+  rounded(
+    'rounded',
+    'Rounded Soft',
+    'sans-serif-rounded',
+    FontWeight.w700,
+    FontWeight.w400,
+    0.2,
+    'Approachable, friendly curved styling',
+    Icons.circle_outlined,
+  ),
+  mono(
+    'mono',
+    'Financial Mono',
+    'monospace',
+    FontWeight.w700,
+    FontWeight.w400,
+    -0.3,
+    'Technical ledger figures & tabular spacing',
+    Icons.pin_outlined,
+  ),
+  serif(
+    'serif',
+    'Elegant Serif',
+    'serif',
+    FontWeight.w700,
+    FontWeight.w400,
+    0.2,
+    'Classic private-wealth editorial elegance',
+    Icons.menu_book_rounded,
+  ),
+  condensed(
+    'condensed',
+    'Compact Condensed',
+    'sans-serif-condensed',
+    FontWeight.w700,
+    FontWeight.w400,
+    -0.4,
+    'Space-efficient, high-density data views',
+    Icons.view_headline_rounded,
+  ),
+  geometric(
+    'geometric',
+    'Geometric Crisp',
+    'sans-serif',
+    FontWeight.w600,
+    FontWeight.w400,
+    0.5,
+    'Pure architectural symmetry and clean lines',
+    Icons.crop_square_rounded,
+  ),
+  minimalist(
+    'minimalist',
+    'Minimalist Light',
+    'sans-serif-light',
+    FontWeight.w500,
+    FontWeight.w300,
+    0.8,
+    'Airy, refined, extended luxury letterspacing',
+    Icons.space_bar_rounded,
+  );
+
+  final String value;
+  final String label;
+  final String fontFamily;
+  final FontWeight headlineWeight;
+  final FontWeight bodyWeight;
+  final double letterSpacingDelta;
+  final String description;
+  final IconData icon;
+
+  const AppFontPreset(
+    this.value,
+    this.label,
+    this.fontFamily,
+    this.headlineWeight,
+    this.bodyWeight,
+    this.letterSpacingDelta,
+    this.description,
+    this.icon,
+  );
+
+  static AppFontPreset fromString(String? val) {
+    return AppFontPreset.values.firstWhere(
+      (e) => e.value == val,
+      orElse: () => AppFontPreset.modern,
+    );
+  }
+}
+
+/// Card corner rounding options.
+enum AppCardRounding {
+  sharp('sharp', 'Sharp', 6.0, Icons.crop_square_rounded, 'Crisp 6px edges'),
+  compact('compact', 'Compact', 12.0, Icons.rounded_corner_rounded, 'Neat 12px corners'),
+  rounded('rounded', 'Rounded', 18.0, Icons.circle_outlined, 'Smooth 18px curves'),
+  pill('pill', 'Extra Pill', 26.0, Icons.panorama_fish_eye_rounded, 'Soft 26px pill');
+
+  final String value;
+  final String label;
+  final double radius;
+  final IconData icon;
+  final String description;
+
+  const AppCardRounding(
+    this.value,
+    this.label,
+    this.radius,
+    this.icon,
+    this.description,
+  );
+
+  static AppCardRounding fromString(String? val) {
+    return AppCardRounding.values.firstWhere(
+      (e) => e.value == val,
+      orElse: () => AppCardRounding.rounded,
+    );
+  }
+}
+
+/// Card surface presentation styles.
+enum AppCardStyle {
+  elevated('elevated', 'Soft Shadow', Icons.layers_rounded, 'Gentle ambient drop shadow'),
+  bordered('bordered', 'Flat Border', Icons.border_all_rounded, 'Crisp clean outline border'),
+  glass('glass', 'Glassmorphic', Icons.blur_on_rounded, 'Frosted glass translucent sheen');
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final String description;
+
+  const AppCardStyle(this.value, this.label, this.icon, this.description);
+
+  static AppCardStyle fromString(String? val) {
+    return AppCardStyle.values.firstWhere(
+      (e) => e.value == val,
+      orElse: () => AppCardStyle.elevated,
     );
   }
 }
@@ -275,6 +470,26 @@ class AppSettings {
   final String currencyCode;
   final DashboardPreferences dashboardPreferences;
   final OcrSettings ocrSettings;
+  final bool soundEnabled;
+  final double soundVolume;
+  final AppFontPreset fontPreset;
+  final AppCardRounding cardRounding;
+  final AppCardStyle cardStyle;
+  final bool autoDetectBankSms;
+  final List<String> smsExcludedKeywords;
+
+  static const List<String> defaultSmsExcludedKeywords = [
+    'loan',
+    'pre-approved',
+    'bonus',
+    'voucher',
+    'coupon',
+    'recharge',
+    'rummy',
+    'win',
+    'lottery',
+    'cashback offer',
+  ];
 
   const AppSettings({
     this.userName = 'Alex',
@@ -283,6 +498,13 @@ class AppSettings {
     this.currencyCode = 'INR',
     this.dashboardPreferences = const DashboardPreferences(),
     this.ocrSettings = const OcrSettings(),
+    this.soundEnabled = true,
+    this.soundVolume = 0.8,
+    this.fontPreset = AppFontPreset.modern,
+    this.cardRounding = AppCardRounding.rounded,
+    this.cardStyle = AppCardStyle.elevated,
+    this.autoDetectBankSms = true,
+    this.smsExcludedKeywords = defaultSmsExcludedKeywords,
   });
 
   AppSettings copyWith({
@@ -292,6 +514,13 @@ class AppSettings {
     String? currencyCode,
     DashboardPreferences? dashboardPreferences,
     OcrSettings? ocrSettings,
+    bool? soundEnabled,
+    double? soundVolume,
+    AppFontPreset? fontPreset,
+    AppCardRounding? cardRounding,
+    AppCardStyle? cardStyle,
+    bool? autoDetectBankSms,
+    List<String>? smsExcludedKeywords,
   }) {
     return AppSettings(
       userName: userName ?? this.userName,
@@ -301,6 +530,13 @@ class AppSettings {
       dashboardPreferences:
           dashboardPreferences ?? this.dashboardPreferences,
       ocrSettings: ocrSettings ?? this.ocrSettings,
+      soundEnabled: soundEnabled ?? this.soundEnabled,
+      soundVolume: soundVolume ?? this.soundVolume,
+      fontPreset: fontPreset ?? this.fontPreset,
+      cardRounding: cardRounding ?? this.cardRounding,
+      cardStyle: cardStyle ?? this.cardStyle,
+      autoDetectBankSms: autoDetectBankSms ?? this.autoDetectBankSms,
+      smsExcludedKeywords: smsExcludedKeywords ?? this.smsExcludedKeywords,
     );
   }
 }

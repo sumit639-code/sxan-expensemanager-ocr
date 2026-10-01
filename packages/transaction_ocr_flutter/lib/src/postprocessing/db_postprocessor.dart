@@ -22,13 +22,13 @@ class DbPostProcessor {
 
   /// Extracts bounding box polygons from a 2D probability map.
   ///
-  /// - [predMap]: 1D flattened Float32List or `List<double>` of length `height * width` (values 0.0 .. 1.0)
+  /// - [predMap]: 1D flattened Float32List or `List<num>`/`List<dynamic>` of length `height * width` (values 0.0 .. 1.0)
   /// - [mapWidth]: Width of the probability map tensor
   /// - [mapHeight]: Height of the probability map tensor
   /// - [destWidth]: Original screenshot image width in pixels
   /// - [destHeight]: Original screenshot image height in pixels
   List<BoundingBox> getBoxes(
-    List<double> predMap,
+    List<dynamic> predMap,
     int mapWidth,
     int mapHeight,
     int destWidth,
@@ -38,10 +38,13 @@ class DbPostProcessor {
       return [];
     }
 
+    final int totalPixels = mapWidth * mapHeight;
+    final int limit = min(totalPixels, predMap.length);
+
     // 1. Binary segmentation threshold
-    final Uint8List binaryMask = Uint8List(mapWidth * mapHeight);
-    for (int i = 0; i < predMap.length; i++) {
-      if (predMap[i] > thresh) {
+    final Uint8List binaryMask = Uint8List(totalPixels);
+    for (int i = 0; i < limit; i++) {
+      if ((predMap[i] as num) > thresh) {
         binaryMask[i] = 1;
       }
     }
@@ -70,10 +73,11 @@ class DbPostProcessor {
       double sumScore = 0.0;
       int pixelCount = 0;
       for (int py = minY; py <= maxY; py++) {
+        final pyOffset = py * mapWidth;
         for (int px = minX; px <= maxX; px++) {
-          final idx = py * mapWidth + px;
+          final idx = pyOffset + px;
           if (binaryMask[idx] == 1) {
-            sumScore += predMap[idx];
+            sumScore += (predMap[idx] as num).toDouble();
             pixelCount++;
           }
         }

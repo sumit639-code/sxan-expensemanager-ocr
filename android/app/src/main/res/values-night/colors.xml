@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Rich dark violet/purple background matching AppColors.darkBackground (#0E0C17) -->
+    <color name="splash_background">#0E0C17</color>
+    <color name="primary_purple">#8C7CFF</color>
+</resources>

@@ -75,6 +75,7 @@ class DuplicateDetector {
             .toLowerCase()
             .replaceAll(RegExp(r'\s+'), ' ');
     final dateKey = DateFormat('yyyy-MM-dd').format(tx.date);
-    return '$dateKey|${tx.amount}|$effectiveTitle';
+    return '$dateKey|${tx.amount}|${tx.type.name}|$effectiveTitle';
   }
+
 }

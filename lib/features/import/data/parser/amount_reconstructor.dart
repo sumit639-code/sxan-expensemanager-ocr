@@ -74,7 +74,15 @@ class AmountReconstructor {
     'reference no',
     'order id',
     'rrn:',
-    'google transaction id',
+    'upi transaction id',
+    'coins redeemed',
+    'coins',
+    'debited from',
+    'check balance',
+    'payment location',
+    'view history',
+    'pay again',
+    'share receipt',
   ];
 
   /// Checks whether [text] is an account balance or summary statement line.
@@ -109,8 +117,23 @@ class AmountReconstructor {
       if (lower.contains(kw)) return true;
     }
 
-    // Bare numeric token 9-20 digits without currency symbol
-    if (RegExp(r'^\d{9,20}$').hasMatch(clean)) {
+    // Hard-reject UPI VPA handles (e.g. "paytmqr6mqm7q@ptys", "MYBMTCDQR@ybl")
+    if (clean.contains('@')) {
+      return true;
+    }
+
+    // Bare numeric token 7 or more digits without currency symbol (e.g. 12-digit UPI IDs, 32-digit internal IDs)
+    if (RegExp(r'^\d{7,}$').hasMatch(clean)) {
+      return true;
+    }
+
+    // Numbers with multiple leading zeros (e.g. "004415604898", "08840")
+    if (RegExp(r'^0\d+$').hasMatch(clean)) {
+      return true;
+    }
+
+    // Bank account suffix pattern e.g. "- 8840", "Indian Bank - 8840", "xx8840", "**8840"
+    if (RegExp(r'^(?:.*-\s*|\*{2,}|x{2,})\d{3,5}$', caseSensitive: false).hasMatch(clean)) {
       return true;
     }
 
@@ -122,13 +145,54 @@ class AmountReconstructor {
     return false;
   }
 
+  /// Normalizes OCR symbol misreads (R20 -> ₹20, 75,000 -> ₹5,000, 7205 -> ₹205).
+  static String normalizeSymbol(String text) {
+    var s = text.trim();
+    // Prefix 'Rs.' / 'Rs' / 'INR' -> ₹
+    s = s.replaceAllMapped(
+      RegExp(r'^([+-]?\s*)(?:Rs\.?|INR)\s*(\d)', caseSensitive: false),
+      (m) => '${m[1]}₹${m[2]}',
+    );
+    // Leading 'R' / 'r' + digit -> ₹
+    s = s.replaceAllMapped(RegExp(r'^([+-]?\s*)[Rr]\s*(\d)'), (m) => '${m[1]}₹${m[2]}');
+    // Leading '#' / '＃' + digit -> ₹
+    s = s.replaceAllMapped(RegExp(r'^([+-]?\s*)[#＃]\s*(\d)'), (m) => '${m[1]}₹${m[2]}');
+    // Leading Chinese artifact '买' / '尐' / '￥' / '¥' / '尺' -> ₹
+    s = s.replaceAllMapped(
+      RegExp(r'^([+-]?\s*)[\u4e70\u5c10\uffe5\u00a5\u5c3a]\s*(\d)'),
+      (m) => '${m[1]}₹${m[2]}',
+    );
+    // Leading '?' / '¿' / '*' before digits -> ₹
+    s = s.replaceAllMapped(RegExp(r'^([+-]?\s*)[\?\¿\*]\s*(\d)'), (m) => '${m[1]}₹${m[2]}');
+    // Leading 'z' / 'Z' before digits with thousands comma -> ₹
+    s = s.replaceAllMapped(
+      RegExp(r'^([+-]?\s*)[zZ]\s*(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)\b'),
+      (m) => '${m[1]}₹${m[2]}',
+    );
+    // Leading 'F' / 'f' before digits -> ₹ (e.g. 'F50' -> '₹50', 'F1,500' -> '₹1,500')
+    s = s.replaceAllMapped(
+      RegExp(r'^([+-]?\s*)[Ff]\s*(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)\b'),
+      (m) => '${m[1]}₹${m[2]}',
+    );
+    // Leading '7' before 1 to 5 digits (OCR misread of '₹' as '7'):
+    // e.g. '76' -> '₹6', '715' -> '₹15', '724' -> '₹24', '735' -> '₹35', '750' -> '₹50'
+    s = s.replaceAllMapped(
+      RegExp(r'^([+-]?\s*)7(\d{1,5}(?:,\d{2,3})*(?:\.\d{1,2})?)\b'),
+      (m) => '${m[1]}₹${m[2]}',
+    );
+    // Remove space after ₹
+    s = s.replaceAllMapped(RegExp(r'₹\s+(\d)'), (m) => '₹${m[1]}');
+    return s;
+  }
+
   /// Extracts and reconstructs a monetary amount from a line of text.
   ///
   /// Handles:
   /// - "+ ₹8,000" / "+ ₹1" (Income)
   /// - "₹40", "₹349", "₹2,500", "₹5,000", "₹2,200", "₹1,500", "₹1,299"
+  /// - "R20", "R205", "R2,200", "7205", "75,000" (OCR normalizations)
   /// - "Rs. 420", "Rs 420", "INR 420"
-  /// - Decimal amounts: "₹420.50" -> 42050 paise
+  /// - Decimal amounts: "₹420.50" -> 42050 paise, "₹200.90" -> 20090 paise
   /// - Indian comma formatting: "1,00,000" -> 10000000 paise
   ///
   /// Returns null if the line is a balance, ID, date, or non-monetary text.
@@ -136,9 +200,6 @@ class AmountReconstructor {
     if (isBlacklistedBalanceOrSummary(text)) return null;
     if (isIdentifierOrPhone(text)) return null;
 
-    // Pre-normalize common ML Kit OCR quirks:
-    // - Zero-width spaces/joiners that ML Kit sometimes inserts
-    // - Non-breaking spaces
     final trimmed = text
         .replaceAll('\u200B', '') // zero-width space
         .replaceAll('\u200C', '') // zero-width non-joiner
@@ -148,13 +209,15 @@ class AmountReconstructor {
         .trim();
     if (trimmed.isEmpty) return null;
 
+    final normalizedRaw = normalizeSymbol(trimmed);
+
     final hasCurrencySymbol =
-        trimmed.contains('₹') ||
+        normalizedRaw.contains('₹') ||
         RegExp(
           r'(?:\binr\b|\brs\b\.?|\brs\.)',
           caseSensitive: false,
-        ).hasMatch(trimmed);
-    if (!hasCurrencySymbol && DateExtractor.parseDate(trimmed) != null) {
+        ).hasMatch(normalizedRaw);
+    if (!hasCurrencySymbol && DateExtractor.parseDate(normalizedRaw) != null) {
       return null;
     }
 
@@ -162,14 +225,14 @@ class AmountReconstructor {
         RegExp(
           r'^\s*\+\s*(?:₹|\bINR\b|\bRs\b\.?|\d)',
           caseSensitive: false,
-        ).hasMatch(trimmed) ||
+        ).hasMatch(normalizedRaw) ||
         RegExp(
           r'(?:₹|\bINR\b|\bRs\b\.?)\s*\+\s*\d',
           caseSensitive: false,
-        ).hasMatch(trimmed);
+        ).hasMatch(normalizedRaw);
 
     // Normalize currency symbols cleanly without corrupting spaces or leaving dangling periods
-    final normalized = trimmed
+    final normalized = normalizedRaw
         .replaceAll('₹', ' ₹ ')
         .replaceAll(
           RegExp(r'\b(?:inr|rs)\b\.?\s*', caseSensitive: false),
@@ -179,17 +242,17 @@ class AmountReconstructor {
         .trim();
 
     final currencyMatch = RegExp(
-      r'₹\s*([\d,]+(?:\.\d{1,2})?)',
+      r'₹\s*([+-]?\s*[\d,]+(?:\.\d{1,2})?)',
       caseSensitive: false,
     ).firstMatch(normalized);
 
     if (currencyMatch != null) {
-      final rawNum = currencyMatch.group(1)!;
+      final rawNum = currencyMatch.group(1)!.replaceAll('+', '').replaceAll('-', '').trim();
       final minorUnits = _toMinorUnits(rawNum);
       if (minorUnits != null && minorUnits > 0) {
         return ReconstructedAmount(
           amountMinor: minorUnits,
-          isIncome: hasIncomePlus,
+          isIncome: hasIncomePlus || normalizedRaw.startsWith('+'),
           rawMatchedText: trimmed,
           formattedText: '${hasIncomePlus ? "+ " : ""}₹$rawNum',
         );
@@ -199,7 +262,7 @@ class AmountReconstructor {
     // 2. Standalone comma-formatted amount: e.g. "5,000", "2,500", "2,200", "8,000", "1,500"
     final standaloneCommaMatch = RegExp(
       r'^[+-]?\s*(\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?)$',
-    ).firstMatch(trimmed);
+    ).firstMatch(normalizedRaw);
 
     if (standaloneCommaMatch != null) {
       final rawNum = standaloneCommaMatch.group(1)!;
@@ -207,17 +270,17 @@ class AmountReconstructor {
       if (minorUnits != null && minorUnits > 0) {
         return ReconstructedAmount(
           amountMinor: minorUnits,
-          isIncome: hasIncomePlus || trimmed.startsWith('+'),
+          isIncome: hasIncomePlus || normalizedRaw.startsWith('+'),
           rawMatchedText: trimmed,
           formattedText: '₹$rawNum',
         );
       }
     }
 
-    // 3. Standalone decimal amount: e.g. "+ ₹8,000", "+ 8,000.00", or "1,500.00"
+    // 3. Standalone decimal amount: e.g. "+ ₹8,000", "+ 8,000.00", "200.90", or "1,500.00"
     final standaloneDecimal = RegExp(
-      r'^[+-]?\s*([\d,]+\.\d{2})$',
-    ).firstMatch(trimmed);
+      r'^[+-]?\s*([\d,]+\.\d{1,2})$',
+    ).firstMatch(normalizedRaw);
 
     if (standaloneDecimal != null) {
       final rawNum = standaloneDecimal.group(1)!;
@@ -225,7 +288,7 @@ class AmountReconstructor {
       if (minorUnits != null && minorUnits > 0) {
         return ReconstructedAmount(
           amountMinor: minorUnits,
-          isIncome: hasIncomePlus || trimmed.startsWith('+'),
+          isIncome: hasIncomePlus || normalizedRaw.startsWith('+'),
           rawMatchedText: trimmed,
           formattedText: '₹$rawNum',
         );
@@ -235,7 +298,7 @@ class AmountReconstructor {
     return null;
   }
 
-  /// Parses a plain numeric string on the right-side of a transaction row (e.g. "40", "349", "80").
+  /// Parses a plain numeric string on the right-side of a transaction row (e.g. "40", "349", "80", "200.90").
   ///
   /// Rejects years (2020..2030), phone numbers, reference IDs, and negative/zero values.
   static ReconstructedAmount? parseRightSideCandidate(String text) {
@@ -249,26 +312,34 @@ class AmountReconstructor {
     final standard = parseAmount(trimmed);
     if (standard != null) return standard;
 
-    // Match plain integer between 1 and 7 digits (e.g. 1 to 9999999)
-    if (RegExp(r'^[+-]?\s*(\d{1,7})$').hasMatch(trimmed)) {
-      final digits = trimmed.replaceAll('+', '').replaceAll('-', '').trim();
-      final val = int.tryParse(digits);
-      if (val != null && val > 0) {
-        // Exclude standalone year numbers (e.g. 2024, 2025, 2026, 2027)
-        if (val >= 2020 && val <= 2030) return null;
+    // Match plain number with optional decimals and commas (e.g. "40", "349", "200.90", "0.50", "3,700.97")
+    if (RegExp(
+      r'^[+-]?\s*(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)$',
+    ).hasMatch(trimmed)) {
+      final cleanNum = trimmed.replaceAll('+', '').replaceAll('-', '').trim();
+      final minor = _toMinorUnits(cleanNum);
+      if (minor != null && minor > 0) {
+        // Exclude standalone year numbers (e.g. 2020..2035) or bare 7+ digit IDs
+        if (!cleanNum.contains('.') && !cleanNum.contains(',')) {
+          final intVal = int.tryParse(cleanNum);
+          if (intVal != null && intVal >= 2020 && intVal <= 2035) return null;
+          if (cleanNum.length >= 7) return null;
+          if (cleanNum.startsWith('0') && cleanNum.length > 1) return null;
+        }
 
         final isIncome = trimmed.startsWith('+');
         return ReconstructedAmount(
-          amountMinor: val * 100,
+          amountMinor: minor,
           isIncome: isIncome,
           rawMatchedText: trimmed,
-          formattedText: '${isIncome ? "+ " : ""}₹$digits',
+          formattedText: '${isIncome ? "+ " : ""}₹$cleanNum',
         );
       }
     }
 
     return null;
   }
+
 
   /// Splits a line that contains both merchant and amount on the same horizontal baseline.
   ///

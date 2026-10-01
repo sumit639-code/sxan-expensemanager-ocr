@@ -14,6 +14,10 @@ class AppTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  final int? minLines;
+  final int? maxLines;
 
   const AppTextField({
     super.key,
@@ -26,6 +30,10 @@ class AppTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.onChanged,
+    this.focusNode,
+    this.autofocus = false,
+    this.minLines,
+    this.maxLines = 1,
   });
 
   @override
@@ -55,8 +63,14 @@ class AppTextField extends StatelessWidget {
         ],
         TextField(
           controller: controller,
-          keyboardType: keyboardType,
+          focusNode: focusNode,
+          autofocus: autofocus,
+          keyboardType: (minLines != null && minLines! > 1) || (maxLines == null || maxLines! > 1)
+              ? TextInputType.multiline
+              : keyboardType,
           obscureText: obscureText,
+          minLines: minLines,
+          maxLines: maxLines,
           onChanged: onChanged,
           style: TextStyle(color: primaryTextColor, fontSize: 16),
           decoration: InputDecoration(
@@ -78,9 +92,12 @@ class AppTextField extends StatelessWidget {
                 width: 1,
               ),
             ),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
               borderRadius: AppSpacing.borderRadiusMedium,
-              borderSide: BorderSide(color: AppColors.primaryPurple, width: 2),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              ),
             ),
             errorBorder: const OutlineInputBorder(
               borderRadius: AppSpacing.borderRadiusMedium,

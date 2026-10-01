@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:expense_app/app/theme/app_colors.dart';
 import 'package:expense_app/features/analysis/domain/entities/analysis_period.dart';
 
+import 'package:expense_app/shared/widgets/app_bottom_sheet.dart';
+
 /// Modal bottom sheet allowing users to select or customize the analysis time frame.
 class PeriodSelectionSheet extends StatelessWidget {
   final AnalysisPeriod currentPeriod;
@@ -19,9 +21,9 @@ class PeriodSelectionSheet extends StatelessWidget {
     BuildContext context, {
     required AnalysisPeriod currentPeriod,
   }) {
-    return showModalBottomSheet<AnalysisPeriod>(
+    return AppBottomSheet.show<AnalysisPeriod>(
       context: context,
-      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => PeriodSelectionSheet(
         currentPeriod: currentPeriod,
         onPeriodSelected: (period) => Navigator.of(ctx).pop(period),
@@ -54,7 +56,6 @@ class PeriodSelectionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = Theme.of(context).colorScheme.primary;
-    final surfaceColor = isDark ? AppColors.darkElevated : AppColors.lightBackground;
     final textColor = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
@@ -67,37 +68,14 @@ class PeriodSelectionSheet extends StatelessWidget {
       AnalysisPeriodType.thisYear,
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+    return AppBottomSheet(
+      title: const Text('Select Time Period'),
+      autoScroll: true,
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Select Time Period',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                color: secondaryColor,
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
           // Standard Period Tiles
           for (final type in standardTypes) ...[
             _PeriodTile(

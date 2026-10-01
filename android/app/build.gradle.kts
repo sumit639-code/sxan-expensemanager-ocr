@@ -56,6 +56,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.google.mlkit:text-recognition-devanagari:16.0.1")
 }
 

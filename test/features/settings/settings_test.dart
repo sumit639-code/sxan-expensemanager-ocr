@@ -18,22 +18,46 @@ void main() {
 
       expect(settings.themeMode, AppThemeMode.system);
       expect(settings.accentColor, AppAccentColor.purple);
+      expect(settings.soundEnabled, isTrue);
+      expect(settings.soundVolume, 0.8);
       expect(settings.dashboardPreferences.showBalance, isTrue);
       expect(settings.dashboardPreferences.showRecentTransactions, isTrue);
       expect(settings.ocrSettings.reviewBeforeSaving, isTrue);
       expect(settings.ocrSettings.duplicateDetection, isTrue);
     });
 
-    test('persists and restores custom theme and accent color', () async {
+    test('persists and restores custom theme and all 8 accent presets', () async {
       final prefs = await SharedPreferences.getInstance();
       final service = SettingsService(prefs);
 
       await service.saveThemeMode(AppThemeMode.dark);
-      await service.saveAccentColor(AppAccentColor.emerald);
+      await service.saveAccentColor(AppAccentColor.teal);
 
       final settings = service.loadSettings();
       expect(settings.themeMode, AppThemeMode.dark);
-      expect(settings.accentColor, AppAccentColor.emerald);
+      expect(settings.accentColor, AppAccentColor.teal);
+
+      // Verify backwards-compatibility with 'emerald'
+      expect(AppAccentColor.fromString('emerald'), AppAccentColor.green);
+
+      // Verify all 8 presets exist
+      expect(AppAccentColor.values.length, 8);
+      for (final preset in AppAccentColor.values) {
+        await service.saveAccentColor(preset);
+        expect(service.loadSettings().accentColor, preset);
+      }
+    });
+
+    test('persists and restores sound preferences', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final service = SettingsService(prefs);
+
+      await service.saveSoundEnabled(false);
+      await service.saveSoundVolume(0.45);
+
+      final settings = service.loadSettings();
+      expect(settings.soundEnabled, isFalse);
+      expect(settings.soundVolume, closeTo(0.45, 0.001));
     });
 
     test('persists and restores dashboard preferences', () async {
@@ -75,6 +99,21 @@ void main() {
       expect(settings.ocrSettings.apiVersion, PythonApiVersion.v1);
       expect(settings.ocrSettings.reviewBeforeSaving, isFalse);
       expect(settings.ocrSettings.duplicateDetection, isTrue);
+    });
+
+    test('persists and restores all 8 font presets', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final service = SettingsService(prefs);
+
+      // Default is modern
+      expect(service.loadSettings().fontPreset, AppFontPreset.modern);
+
+      // Verify all 8 font presets exist and persist
+      expect(AppFontPreset.values.length, 8);
+      for (final preset in AppFontPreset.values) {
+        await service.saveFontPreset(preset);
+        expect(service.loadSettings().fontPreset, preset);
+      }
     });
   });
 }

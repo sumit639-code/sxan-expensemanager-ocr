@@ -99,6 +99,26 @@ class LayoutRowSegmenter {
   // 1. Layout Detection
   // ---------------------------------------------------------------------------
   DetectedLayoutType _detectLayoutType(List<OcrLine> lines) {
+    // Unambiguous Single Receipt markers:
+    for (final line in lines) {
+      final clean = line.text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+      if (clean.contains('transactionsuccessful') ||
+          clean.contains('paymentsuccessful') ||
+          clean.contains('paidsuccessfully') ||
+          clean.contains('transferdetails') ||
+          clean.contains('upitransactionid') ||
+          clean.contains('transactionid') ||
+          clean.contains('paidvia') ||
+          clean.contains('payagain') ||
+          clean.contains('splitexpense') ||
+          clean.contains('sharereceipt') ||
+          clean.contains('sendagain') ||
+          clean.contains('bankingname') ||
+          clean.contains('support')) {
+        return DetectedLayoutType.singleReceipt;
+      }
+    }
+
     int layoutBMarkers = 0;
     int amountCount = 0;
 
@@ -518,34 +538,97 @@ class LayoutRowSegmenter {
     String? merchant;
     bool isIncome = false;
 
-    for (final line in lines) {
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
       final text = line.text;
-      final lower = text.toLowerCase();
+      final lower = text.toLowerCase().trim();
 
       if (lower.contains('received from') ||
           lower.contains('credited to') ||
-          text.contains('+')) {
+          RegExp(r'\+\s*(?:₹|rs\.?|inr)\s*\d', caseSensitive: false).hasMatch(lower) ||
+          RegExp(r'(?:₹|rs\.?|inr)\s*\+\s*\d', caseSensitive: false).hasMatch(lower)) {
         isIncome = true;
+      } else if (lower.contains('paid to') ||
+          lower.contains('payment to') ||
+          lower.contains('debited from')) {
+        isIncome = false;
       }
 
       if (primaryAmt == null) {
-        final a = AmountReconstructor.parseAmount(text);
-        if (a != null) {
-          primaryAmt = a;
-          if (a.isIncome) isIncome = true;
+        if (!_isDebitCreditFooter(text)) {
+          final a = AmountReconstructor.parseAmount(text);
+          if (a != null) {
+            primaryAmt = a;
+            if (a.isIncome) isIncome = true;
+          }
         }
       }
 
       dateRes ??= DateExtractor.parseDate(text);
+    }
 
-      if (merchant == null) {
+    // If no explicit currency amount found, check for plain number hero amount
+    if (primaryAmt == null) {
+      final maxBottom = lines
+          .map((l) => l.boundingBox?.bottom ?? 0.0)
+          .fold(0.0, (a, b) => a > b ? a : b);
+      for (final line in lines) {
+        final t = line.text.trim();
+        if (_isDebitCreditFooter(t)) continue;
+        // Skip status bar lines (top 10% of image)
+        if (line.boundingBox != null && maxBottom > 0 && line.boundingBox!.top < maxBottom * 0.10) {
+          continue;
+        }
+        if (RegExp(r'^\d{1,6}(?:\.\d{1,2})?$').hasMatch(t)) {
+          final val = double.tryParse(t);
+          if (val != null && val > 0 && !AmountReconstructor.isIdentifierOrPhone(t) && !t.startsWith('0')) {
+            primaryAmt = ReconstructedAmount(
+              formattedText: '₹$t',
+              amountMinor: (val * 100).round(),
+              isIncome: false,
+              rawMatchedText: t,
+            );
+            break;
+          }
+        }
+      }
+    }
+
+    // Pass 1: look for explicit anchor ("Paid to", "Payment to", "To", "Received from")
+    for (int i = 0; i < lines.length; i++) {
+      final lower = lines[i].text.toLowerCase().trim();
+      if (lower == 'paid to' || lower == 'payment to' || lower == 'to' || lower == 'received from') {
+        if (i + 1 < lines.length) {
+          final nextText = lines[i + 1].text.trim();
+          final c = _cleanTitleText(nextText);
+          if (c.isNotEmpty &&
+              !_isGenericAppHeader(c) &&
+              !_isDirectionPrefix(c) &&
+              !_isDebitCreditFooter(c) &&
+              !c.contains('@') &&
+              DateExtractor.parseDate(c) == null &&
+              AmountReconstructor.parseAmount(c) == null) {
+            merchant = c;
+            break;
+          }
+        }
+      }
+    }
+
+    // Pass 2: fallback to first eligible line if no anchor found
+    if (merchant == null) {
+      for (final line in lines) {
+        final text = line.text;
         final c = _cleanTitleText(text);
         if (c.isNotEmpty &&
+            !_isGenericAppHeader(c) &&
             !_isDirectionPrefix(c) &&
             !_isDebitCreditFooter(c) &&
+            !c.contains('@') &&
             DateExtractor.parseDate(c) == null &&
             AmountReconstructor.parseAmount(c) == null) {
           merchant = c;
+          break;
         }
       }
     }
@@ -719,11 +802,27 @@ class LayoutRowSegmenter {
         continue;
       }
 
-      // Bottom bar
+      // Bottom bar & navigation chrome
       if (lower == 'home' ||
           lower == 'alerts' ||
           lower == 'history' ||
-          lower == 'rewards') {
+          lower == 'rewards' ||
+          lower == 'investment' ||
+          lower == 'explore' ||
+          lower == 'insurance' ||
+          lower == 'view history' ||
+          lower == 'pay again' ||
+          lower == 'share receipt' ||
+          lower == 'check balance' ||
+          lower == 'payment location' ||
+          lower == 'open maps' ||
+          lower == 'via upi' ||
+          lower == 'received in' ||
+          lower.startsWith('paid via') ||
+          lower.contains('coins redeemed') ||
+          lower.contains('.rzp') ||
+          lower.startsWith('**') ||
+          lower.contains('@')) {
         continue;
       }
 
@@ -743,21 +842,64 @@ class LayoutRowSegmenter {
     return filtered;
   }
 
+  bool _isGenericAppHeader(String s) {
+    final lower = s.toLowerCase().trim();
+    if (lower.startsWith('notes:') ||
+        lower.startsWith('note:') ||
+        lower.contains('paid via') ||
+        lower.contains('view history') ||
+        lower.contains('check balance') ||
+        lower.contains('share receipt') ||
+        lower.contains('pay again') ||
+        lower.contains('open maps') ||
+        lower.contains('payment location') ||
+        lower.contains('upi transaction id') ||
+        lower.contains('transaction id') ||
+        lower.contains('coins redeemed')) {
+      return true;
+    }
+    const generic = [
+      'payment details',
+      'transaction details',
+      'transfer details',
+      'bill payment',
+      'debited from',
+      'credited to',
+      'search transactions',
+      'status',
+      'payment method',
+      'date',
+      'amount',
+      'history',
+      'help',
+      'transaction successful',
+      'payment successful',
+      'paid successfully',
+      'successful',
+      'completed',
+    ];
+    return generic.contains(lower);
+  }
+
   bool _isSingleLetterAvatar(String s) {
     final clean = s.trim();
     return clean.length == 1 && RegExp(r'^[A-Za-z]$').hasMatch(clean);
   }
 
   bool _isDirectionPrefix(String s) {
-    final lower = s.toLowerCase();
+    final lower = s.toLowerCase().trim();
     return lower == 'paid to' ||
         lower == 'payment to' ||
         lower == 'received from' ||
-        lower == 'sent to';
+        lower == 'sent to' ||
+        lower == 'transfer to' ||
+        lower == 'paid' ||
+        lower == 'to' ||
+        lower == 'from';
   }
 
   bool _isDebitCreditFooter(String s) {
-    final lower = s.toLowerCase();
+    final lower = s.toLowerCase().trim();
     return lower.startsWith('debited from') || lower.startsWith('credited to');
   }
 
@@ -765,7 +907,7 @@ class LayoutRowSegmenter {
     var text = s.trim();
     text = text.replaceAll(
       RegExp(
-        r'^(paid to|payment to|received from|sent to)\s*',
+        r'^(paid to|payment to|received from|sent to|transfer to|to|from)\s*',
         caseSensitive: false,
       ),
       '',

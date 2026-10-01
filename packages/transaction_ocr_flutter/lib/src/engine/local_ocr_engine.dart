@@ -1,5 +1,6 @@
+import 'dart:isolate';
 import 'dart:math';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 
@@ -42,18 +43,23 @@ class LocalOcrEngine implements OcrEngine {
     if (_isInitialized) return;
 
     try {
+      debugPrint('[TransactionOCR][INIT] Starting on-device ONNX engine initialization');
+      debugPrint('[TransactionOCR][INIT] Det model: ${config.detModelPath}, Rec model: ${config.recModelPath}');
       final onnx = OnnxRuntime();
       final sessionOptions = OrtSessionOptions();
 
       Future<OrtSession> createSessionWithFallback(String path) async {
         try {
+          debugPrint('[TransactionOCR][SESSION] Loading model from asset: $path');
           return await onnx.createSessionFromAsset(path, options: sessionOptions);
         } catch (e) {
-          if (!path.startsWith('packages/')) {
-            final pkgPath = 'packages/transaction_ocr_flutter/$path';
-            return await onnx.createSessionFromAsset(pkgPath, options: sessionOptions);
-          }
-          rethrow;
+          final altPath = path.startsWith('packages/transaction_ocr_flutter/')
+              ? path.replaceFirst('packages/transaction_ocr_flutter/', '')
+              : (path.startsWith('packages/')
+                  ? path
+                  : 'packages/transaction_ocr_flutter/$path');
+          debugPrint('[TransactionOCR][SESSION] Primary load failed ($e), attempting fallback: $altPath');
+          return await onnx.createSessionFromAsset(altPath, options: sessionOptions);
         }
       }
 
@@ -61,19 +67,22 @@ class LocalOcrEngine implements OcrEngine {
         try {
           return await rootBundle.loadString(path);
         } catch (e) {
-          if (!path.startsWith('packages/')) {
-            final pkgPath = 'packages/transaction_ocr_flutter/$path';
-            return await rootBundle.loadString(pkgPath);
-          }
-          rethrow;
+          final altPath = path.startsWith('packages/transaction_ocr_flutter/')
+              ? path.replaceFirst('packages/transaction_ocr_flutter/', '')
+              : (path.startsWith('packages/')
+                  ? path
+                  : 'packages/transaction_ocr_flutter/$path');
+          return await rootBundle.loadString(altPath);
         }
       }
 
       // 1. Initialize Detection Session
       _detSession = await createSessionWithFallback(config.detModelPath);
+      debugPrint('[TransactionOCR][SESSION] DBNet detection session initialized successfully');
 
       // 2. Initialize Recognition Session
       _recSession = await createSessionWithFallback(config.recModelPath);
+      debugPrint('[TransactionOCR][SESSION] SVTR-LCNet recognition session initialized successfully');
 
       // 3. Load Character Dictionary
       String keysContent = customKeysContent ?? '';
@@ -81,6 +90,7 @@ class LocalOcrEngine implements OcrEngine {
         keysContent = await loadStringWithFallback(config.keysPath);
       }
       _ctcDecoder = CtcDecoder.fromKeysText(keysContent);
+      debugPrint('[TransactionOCR][INIT] CTC dictionary loaded: ${_ctcDecoder?.characterDict.length ?? 0} characters');
 
       // 4. Initialize DB Post-processor
       _dbPostProcessor = DbPostProcessor(
@@ -90,7 +100,9 @@ class LocalOcrEngine implements OcrEngine {
       );
 
       _isInitialized = true;
+      debugPrint('[TransactionOCR][INIT] Engine initialization complete and ready for inference');
     } catch (e, st) {
+      debugPrint('[TransactionOCR][ERROR] Initialization failed: $e');
       throw ModelLoadException(
         'Failed to initialize LocalOcrEngine models: $e',
         cause: e,
@@ -113,17 +125,26 @@ class LocalOcrEngine implements OcrEngine {
 
     try {
       onProgress?.call(currentImage, totalImages, 'Decoding image', 0.10);
-      final image = ImagePreprocessor.decodeImage(imageBytes);
+      // Run decoding in background isolate to keep UI responsive
+      final image = await Isolate.run(() => ImagePreprocessor.decodeImage(imageBytes));
       final origW = image.width;
       final origH = image.height;
 
+      debugPrint('[TransactionOCR][RUN] Starting extraction for $filename (dim: ${origW}x$origH, bytes: ${imageBytes.length})');
+
+      // Yield after heavy image decoding
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
       // ── 1. Text Detection ─────────────────────────────────────────
       onProgress?.call(currentImage, totalImages, 'Preprocessing image for detection', 0.20);
-      final detPrep = ImagePreprocessor.preprocessForDetection(
-        image,
-        limitSideLen: config.limitSideLen,
+      final detPrep = await Isolate.run(
+        () => ImagePreprocessor.preprocessForDetection(
+          image,
+          limitSideLen: config.limitSideLen,
+        ),
       );
 
+      debugPrint('[TransactionOCR][RUN] DBNet input tensor shape: [1, 3, ${detPrep.tensorHeight}, ${detPrep.tensorWidth}]');
       onProgress?.call(currentImage, totalImages, 'Running text detection model', 0.35);
       final detInputVal = await OrtValue.fromList(
         detPrep.chwTensor,
@@ -134,27 +155,35 @@ class LocalOcrEngine implements OcrEngine {
       final detProbOrtVal = detOutputs.values.first;
       final detFlat = await detProbOrtVal.asFlattenedList();
 
+      debugPrint('[TransactionOCR][OUTPUT] DBNet run complete: outputs=${detOutputs.length}, map elements=${detFlat.length}');
+
       await detInputVal.dispose();
       for (final v in detOutputs.values) {
         await v.dispose();
       }
 
       onProgress?.call(currentImage, totalImages, 'Extracting bounding boxes', 0.50);
-      final rawDoubleList = detFlat.map((e) => (e as num).toDouble()).toList();
       final boxes = _dbPostProcessor.getBoxes(
-        rawDoubleList,
+        detFlat,
         detPrep.tensorWidth,
         detPrep.tensorHeight,
         origW,
         origH,
       );
 
+      // Limit to at most 80 candidate boxes to prevent runaway loops on noisy screenshots
+      final candidateBoxes = boxes.length > 80 ? boxes.sublist(0, 80) : boxes;
+      debugPrint('[TransactionOCR][OUTPUT] Bounding boxes detected: ${boxes.length} (processing ${candidateBoxes.length})');
+
+      // Yield after heavy detection post-processing before recognition loop
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
       // ── 2. Text Line Recognition ──────────────────────────────────
       final List<Map<String, dynamic>> rawDetections = [];
-      final int totalBoxes = boxes.length;
+      final int totalBoxes = candidateBoxes.length;
 
       for (int i = 0; i < totalBoxes; i++) {
-        final box = boxes[i];
+        final box = candidateBoxes[i];
         final progressFrac = 0.50 + (0.30 * (i / max(1, totalBoxes)));
         onProgress?.call(
           currentImage,
@@ -163,58 +192,73 @@ class LocalOcrEngine implements OcrEngine {
           progressFrac,
         );
 
-        final crop = ImagePreprocessor.cropTextRegion(image, box);
-        if (crop.width <= 2 || crop.height <= 2) continue;
-
-        final recPrep = ImagePreprocessor.preprocessForRecognition(crop);
-        final recInputVal = await OrtValue.fromList(
-          recPrep.chwTensor,
-          [1, 3, recPrep.tensorHeight, recPrep.tensorWidth],
-        );
-
-        final recOutputs = await _recSession!.run({'x': recInputVal});
-        final recOrtVal = recOutputs.values.first;
-        final recFlat = await recOrtVal.asFlattenedList();
-
-        await recInputVal.dispose();
-        for (final v in recOutputs.values) {
-          await v.dispose();
+        // Yield to the UI thread periodically so the loading animation
+        // doesn't freeze during heavy sequential ONNX inference.
+        if (i % 2 == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 1));
         }
 
-        // Decode CTC Output: Shape [1, T, 6625]
-        const int numClasses = 6625;
-        final int timeSteps = recFlat.length ~/ numClasses;
-        final List<int> predIndices = [];
-        final List<double> predProbs = [];
+        try {
+          final crop = ImagePreprocessor.cropTextRegion(image, box);
+          if (crop.width <= 2 || crop.height <= 2) continue;
 
-        for (int t = 0; t < timeSteps; t++) {
-          int maxIdx = 0;
-          double maxVal = -1e9;
-          final offset = t * numClasses;
+          final recPrep = ImagePreprocessor.preprocessForRecognition(crop);
+          final recInputVal = await OrtValue.fromList(
+            recPrep.chwTensor,
+            [1, 3, recPrep.tensorHeight, recPrep.tensorWidth],
+          );
 
-          for (int c = 0; c < numClasses; c++) {
-            final val = (recFlat[offset + c] as num).toDouble();
-            if (val > maxVal) {
-              maxVal = val;
-              maxIdx = c;
-            }
+          final recOutputs = await _recSession!.run({'x': recInputVal});
+          final recOrtVal = recOutputs.values.first;
+          final recFlat = await recOrtVal.asFlattenedList();
+
+          await recInputVal.dispose();
+          for (final v in recOutputs.values) {
+            await v.dispose();
           }
-          predIndices.add(maxIdx);
-          predProbs.add(maxVal);
-        }
 
-        final decoded = _ctcDecoder!.decode(predIndices, predProbs);
-        final text = decoded['text'] as String;
-        final conf = decoded['confidence'] as double;
+          // Decode CTC Output: Shape [1, T, 6625]
+          const int numClasses = 6625;
+          final int timeSteps = recFlat.length ~/ numClasses;
+          if (timeSteps <= 0) continue;
 
-        if (conf >= config.textScoreThresh && text.trim().isNotEmpty) {
-          rawDetections.add({
-            'text': text,
-            'confidence': conf,
-            'bbox': box,
-          });
+          final List<int> predIndices = [];
+          final List<double> predProbs = [];
+
+          for (int t = 0; t < timeSteps; t++) {
+            int maxIdx = 0;
+            double maxVal = -1e9;
+            final offset = t * numClasses;
+
+            for (int c = 0; c < numClasses; c++) {
+              final val = (recFlat[offset + c] as num).toDouble();
+              if (val > maxVal) {
+                maxVal = val;
+                maxIdx = c;
+              }
+            }
+            predIndices.add(maxIdx);
+            predProbs.add(maxVal);
+          }
+
+          final decoded = _ctcDecoder!.decode(predIndices, predProbs);
+          final text = decoded['text'] as String;
+          final conf = decoded['confidence'] as double;
+
+          if (conf >= config.textScoreThresh && text.trim().isNotEmpty) {
+            rawDetections.add({
+              'text': text,
+              'confidence': conf,
+              'bbox': box,
+            });
+          }
+        } catch (e) {
+          // Log and skip individual failed text line crop without killing the whole pipeline
+          continue;
         }
       }
+
+      debugPrint('[TransactionOCR][OUTPUT] Recognition complete: ${rawDetections.length} valid text lines extracted');
 
       // ── 3. Candidate Consolidation & V2 Parsing ─────────────────────
       onProgress?.call(currentImage, totalImages, 'Consolidating candidates', 0.85);

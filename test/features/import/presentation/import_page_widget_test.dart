@@ -124,13 +124,13 @@ void main() {
           ),
         );
 
-        expect(find.text('Review Transactions'), findsOneWidget);
-        expect(find.text('1 of 2 selected'), findsOneWidget);
+        expect(find.text('Review transactions'), findsOneWidget);
+        expect(find.text('2 transactions · 1 selected'), findsOneWidget);
         expect(find.text('Swiggy'), findsOneWidget);
         expect(find.text('Uber'), findsOneWidget);
-        expect(find.text('Add 1 transaction'), findsOneWidget);
+        expect(find.text('Import 1 transaction'), findsOneWidget);
 
-        await tester.tap(find.text('Add 1 transaction'));
+        await tester.tap(find.text('Import 1 transaction'));
         expect(confirmed, isTrue);
       },
     );

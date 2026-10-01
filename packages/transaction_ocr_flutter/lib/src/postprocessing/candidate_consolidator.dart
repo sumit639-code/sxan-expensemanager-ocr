@@ -87,7 +87,7 @@ class OcrCandidateConsolidator {
 
     // 2. Financial Amount Pattern Match (+0.30)
     final cleanNoCurr = normText
-        .replaceAll(RegExp(r'[₹\$]|inr|rs\.?', caseSensitive: false), '')
+        .replaceAll(RegExp(r'^[₹\$\+\-\s]+|[₹\$]|inr|rs\.?', caseSensitive: false), '')
         .trim();
     if (RegExp(r'^\d{1,3}(,\d{2,3})*(\.\d{2})?$').hasMatch(cleanNoCurr)) {
       score += 0.30;
@@ -98,8 +98,9 @@ class OcrCandidateConsolidator {
       score += 0.15;
     }
 
-    // 4. Noise Penalty for Chinese / non-ASCII unexpected characters (-0.50)
-    if (RegExp(r'[\u4e00-\u9fff]').hasMatch(text)) {
+    // 4. Noise Penalty for Chinese / non-ASCII unexpected characters (-0.50), excluding known Rupee misreads
+    final nonRupeeCjk = text.replaceAll(RegExp(r'[\u4e70\u5c10\uffe5\u00a5\u5c3a]'), '');
+    if (RegExp(r'[\u4e00-\u9fff]').hasMatch(nonRupeeCjk)) {
       score -= 0.50;
     }
 
