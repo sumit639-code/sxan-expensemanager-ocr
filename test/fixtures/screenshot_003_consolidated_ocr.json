@@ -1,0 +1,1949 @@
+{
+    "image": "screenshot_003.png",
+    "variant": "original",
+    "width": 462,
+    "height": 1024,
+    "engine": "RapidOCR-ONNX",
+    "raw_detections_count": 38,
+    "consolidated_detections_count": 38,
+    "detections": [
+        {
+            "text": "16:48",
+            "text_normalized": "16:48",
+            "confidence": 0.7678258021672567,
+            "composite_score": 0.7678,
+            "bbox": [
+                [
+                    31.0,
+                    19.0
+                ],
+                [
+                    75.0,
+                    19.0
+                ],
+                [
+                    75.0,
+                    34.0
+                ],
+                [
+                    31.0,
+                    34.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "16:48",
+                    "text_normalized": "16:48",
+                    "confidence": 0.7678258021672567,
+                    "composite_score": 0.7678,
+                    "bbox": [
+                        [
+                            31.0,
+                            19.0
+                        ],
+                        [
+                            75.0,
+                            19.0
+                        ],
+                        [
+                            75.0,
+                            34.0
+                        ],
+                        [
+                            31.0,
+                            34.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Searchtransactions",
+            "text_normalized": "Searchtransactions",
+            "confidence": 0.9300473426517687,
+            "composite_score": 0.93,
+            "bbox": [
+                [
+                    71.0,
+                    77.0
+                ],
+                [
+                    220.0,
+                    78.0
+                ],
+                [
+                    220.0,
+                    95.0
+                ],
+                [
+                    71.0,
+                    93.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Searchtransactions",
+                    "text_normalized": "Searchtransactions",
+                    "confidence": 0.9300473426517687,
+                    "composite_score": 0.93,
+                    "bbox": [
+                        [
+                            71.0,
+                            77.0
+                        ],
+                        [
+                            220.0,
+                            78.0
+                        ],
+                        [
+                            220.0,
+                            95.0
+                        ],
+                        [
+                            71.0,
+                            93.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Status",
+            "text_normalized": "Status",
+            "confidence": 0.8361278687204633,
+            "composite_score": 0.8361,
+            "bbox": [
+                [
+                    35.0,
+                    141.0
+                ],
+                [
+                    84.0,
+                    143.0
+                ],
+                [
+                    83.0,
+                    160.0
+                ],
+                [
+                    34.0,
+                    159.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Status",
+                    "text_normalized": "Status",
+                    "confidence": 0.8361278687204633,
+                    "composite_score": 0.8361,
+                    "bbox": [
+                        [
+                            35.0,
+                            141.0
+                        ],
+                        [
+                            84.0,
+                            143.0
+                        ],
+                        [
+                            83.0,
+                            160.0
+                        ],
+                        [
+                            34.0,
+                            159.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Date",
+            "text_normalized": "Date",
+            "confidence": 0.7977739810943604,
+            "composite_score": 0.7978,
+            "bbox": [
+                [
+                    328.0,
+                    141.0
+                ],
+                [
+                    366.0,
+                    143.0
+                ],
+                [
+                    365.0,
+                    161.0
+                ],
+                [
+                    327.0,
+                    159.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Date",
+                    "text_normalized": "Date",
+                    "confidence": 0.7977739810943604,
+                    "composite_score": 0.7978,
+                    "bbox": [
+                        [
+                            328.0,
+                            141.0
+                        ],
+                        [
+                            366.0,
+                            143.0
+                        ],
+                        [
+                            365.0,
+                            161.0
+                        ],
+                        [
+                            327.0,
+                            159.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Payment method",
+            "text_normalized": "Payment method",
+            "confidence": 0.839573860168457,
+            "composite_score": 0.8396,
+            "bbox": [
+                [
+                    146.0,
+                    142.0
+                ],
+                [
+                    266.0,
+                    142.0
+                ],
+                [
+                    266.0,
+                    159.0
+                ],
+                [
+                    146.0,
+                    159.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Payment method",
+                    "text_normalized": "Payment method",
+                    "confidence": 0.839573860168457,
+                    "composite_score": 0.8396,
+                    "bbox": [
+                        [
+                            146.0,
+                            142.0
+                        ],
+                        [
+                            266.0,
+                            142.0
+                        ],
+                        [
+                            266.0,
+                            159.0
+                        ],
+                        [
+                            146.0,
+                            159.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Amo",
+            "text_normalized": "Amo",
+            "confidence": 0.7378998547792435,
+            "composite_score": 0.7379,
+            "bbox": [
+                [
+                    427.0,
+                    141.0
+                ],
+                [
+                    461.0,
+                    143.0
+                ],
+                [
+                    461.0,
+                    161.0
+                ],
+                [
+                    427.0,
+                    159.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Amo",
+                    "text_normalized": "Amo",
+                    "confidence": 0.7378998547792435,
+                    "composite_score": 0.7379,
+                    "bbox": [
+                        [
+                            427.0,
+                            141.0
+                        ],
+                        [
+                            461.0,
+                            143.0
+                        ],
+                        [
+                            461.0,
+                            161.0
+                        ],
+                        [
+                            427.0,
+                            159.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "4September",
+            "text_normalized": "4September",
+            "confidence": 0.8680197163061663,
+            "composite_score": 0.868,
+            "bbox": [
+                [
+                    79.0,
+                    190.0
+                ],
+                [
+                    169.0,
+                    191.0
+                ],
+                [
+                    169.0,
+                    208.0
+                ],
+                [
+                    78.0,
+                    207.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "4September",
+                    "text_normalized": "4September",
+                    "confidence": 0.8680197163061663,
+                    "composite_score": 0.868,
+                    "bbox": [
+                        [
+                            79.0,
+                            190.0
+                        ],
+                        [
+                            169.0,
+                            191.0
+                        ],
+                        [
+                            169.0,
+                            208.0
+                        ],
+                        [
+                            78.0,
+                            207.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "HemantStore",
+            "text_normalized": "HemantStore",
+            "confidence": 0.8216122537851334,
+            "composite_score": 0.8216,
+            "bbox": [
+                [
+                    79.0,
+                    244.0
+                ],
+                [
+                    187.0,
+                    244.0
+                ],
+                [
+                    187.0,
+                    261.0
+                ],
+                [
+                    79.0,
+                    261.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "HemantStore",
+                    "text_normalized": "HemantStore",
+                    "confidence": 0.8216122537851334,
+                    "composite_score": 0.8216,
+                    "bbox": [
+                        [
+                            79.0,
+                            244.0
+                        ],
+                        [
+                            187.0,
+                            244.0
+                        ],
+                        [
+                            187.0,
+                            261.0
+                        ],
+                        [
+                            79.0,
+                            261.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "R20",
+            "text_normalized": "₹20",
+            "confidence": 0.6043508648872375,
+            "composite_score": 1.1544,
+            "bbox": [
+                [
+                    407.0,
+                    243.0
+                ],
+                [
+                    441.0,
+                    243.0
+                ],
+                [
+                    441.0,
+                    262.0
+                ],
+                [
+                    407.0,
+                    262.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "R20",
+                    "text_normalized": "₹20",
+                    "confidence": 0.6043508648872375,
+                    "composite_score": 1.1544,
+                    "bbox": [
+                        [
+                            407.0,
+                            243.0
+                        ],
+                        [
+                            441.0,
+                            243.0
+                        ],
+                        [
+                            441.0,
+                            262.0
+                        ],
+                        [
+                            407.0,
+                            262.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "4September",
+            "text_normalized": "4September",
+            "confidence": 0.8772385228763927,
+            "composite_score": 0.8772,
+            "bbox": [
+                [
+                    79.0,
+                    267.0
+                ],
+                [
+                    169.0,
+                    268.0
+                ],
+                [
+                    169.0,
+                    284.0
+                ],
+                [
+                    78.0,
+                    283.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "4September",
+                    "text_normalized": "4September",
+                    "confidence": 0.8772385228763927,
+                    "composite_score": 0.8772,
+                    "bbox": [
+                        [
+                            79.0,
+                            267.0
+                        ],
+                        [
+                            169.0,
+                            268.0
+                        ],
+                        [
+                            169.0,
+                            284.0
+                        ],
+                        [
+                            78.0,
+                            283.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "THE PRABHAT MISTANNA BHANDAR",
+            "text_normalized": "THE PRABHAT MISTANNA BHANDAR",
+            "confidence": 0.9052208990886293,
+            "composite_score": 0.9052,
+            "bbox": [
+                [
+                    80.0,
+                    321.0
+                ],
+                [
+                    354.0,
+                    321.0
+                ],
+                [
+                    354.0,
+                    336.0
+                ],
+                [
+                    80.0,
+                    336.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "THE PRABHAT MISTANNA BHANDAR",
+                    "text_normalized": "THE PRABHAT MISTANNA BHANDAR",
+                    "confidence": 0.9052208990886293,
+                    "composite_score": 0.9052,
+                    "bbox": [
+                        [
+                            80.0,
+                            321.0
+                        ],
+                        [
+                            354.0,
+                            321.0
+                        ],
+                        [
+                            354.0,
+                            336.0
+                        ],
+                        [
+                            80.0,
+                            336.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "7205",
+            "text_normalized": "₹205",
+            "confidence": 0.6310003310441971,
+            "composite_score": 1.181,
+            "bbox": [
+                [
+                    398.0,
+                    319.0
+                ],
+                [
+                    440.0,
+                    319.0
+                ],
+                [
+                    440.0,
+                    337.0
+                ],
+                [
+                    398.0,
+                    337.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "7205",
+                    "text_normalized": "₹205",
+                    "confidence": 0.6310003310441971,
+                    "composite_score": 1.181,
+                    "bbox": [
+                        [
+                            398.0,
+                            319.0
+                        ],
+                        [
+                            440.0,
+                            319.0
+                        ],
+                        [
+                            440.0,
+                            337.0
+                        ],
+                        [
+                            398.0,
+                            337.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "3September",
+            "text_normalized": "3September",
+            "confidence": 0.8767560124397278,
+            "composite_score": 0.8768,
+            "bbox": [
+                [
+                    78.0,
+                    343.0
+                ],
+                [
+                    168.0,
+                    343.0
+                ],
+                [
+                    168.0,
+                    360.0
+                ],
+                [
+                    78.0,
+                    360.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "3September",
+                    "text_normalized": "3September",
+                    "confidence": 0.8767560124397278,
+                    "composite_score": 0.8768,
+                    "bbox": [
+                        [
+                            78.0,
+                            343.0
+                        ],
+                        [
+                            168.0,
+                            343.0
+                        ],
+                        [
+                            168.0,
+                            360.0
+                        ],
+                        [
+                            78.0,
+                            360.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "ABHIJEET KUMAR SINGH",
+            "text_normalized": "ABHIJEET KUMAR SINGH",
+            "confidence": 0.8754191682452247,
+            "composite_score": 0.8754,
+            "bbox": [
+                [
+                    79.0,
+                    397.0
+                ],
+                [
+                    271.0,
+                    396.0
+                ],
+                [
+                    271.0,
+                    412.0
+                ],
+                [
+                    79.0,
+                    413.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "ABHIJEET KUMAR SINGH",
+                    "text_normalized": "ABHIJEET KUMAR SINGH",
+                    "confidence": 0.8754191682452247,
+                    "composite_score": 0.8754,
+                    "bbox": [
+                        [
+                            79.0,
+                            397.0
+                        ],
+                        [
+                            271.0,
+                            396.0
+                        ],
+                        [
+                            271.0,
+                            412.0
+                        ],
+                        [
+                            79.0,
+                            413.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "R200",
+            "text_normalized": "₹200",
+            "confidence": 0.6805207967758179,
+            "composite_score": 1.2305,
+            "bbox": [
+                [
+                    397.0,
+                    395.0
+                ],
+                [
+                    441.0,
+                    395.0
+                ],
+                [
+                    441.0,
+                    413.0
+                ],
+                [
+                    397.0,
+                    413.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "R200",
+                    "text_normalized": "₹200",
+                    "confidence": 0.6805207967758179,
+                    "composite_score": 1.2305,
+                    "bbox": [
+                        [
+                            397.0,
+                            395.0
+                        ],
+                        [
+                            441.0,
+                            395.0
+                        ],
+                        [
+                            441.0,
+                            413.0
+                        ],
+                        [
+                            397.0,
+                            413.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "3September",
+            "text_normalized": "3September",
+            "confidence": 0.8485231562094255,
+            "composite_score": 0.8485,
+            "bbox": [
+                [
+                    79.0,
+                    420.0
+                ],
+                [
+                    168.0,
+                    420.0
+                ],
+                [
+                    168.0,
+                    437.0
+                ],
+                [
+                    79.0,
+                    437.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "3September",
+                    "text_normalized": "3September",
+                    "confidence": 0.8485231562094255,
+                    "composite_score": 0.8485,
+                    "bbox": [
+                        [
+                            79.0,
+                            420.0
+                        ],
+                        [
+                            168.0,
+                            420.0
+                        ],
+                        [
+                            168.0,
+                            437.0
+                        ],
+                        [
+                            79.0,
+                            437.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Omhotelsweetandsnacks",
+            "text_normalized": "Omhotelsweetandsnacks",
+            "confidence": 0.9211884791200812,
+            "composite_score": 0.9212,
+            "bbox": [
+                [
+                    80.0,
+                    473.0
+                ],
+                [
+                    289.0,
+                    473.0
+                ],
+                [
+                    289.0,
+                    489.0
+                ],
+                [
+                    80.0,
+                    489.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Omhotelsweetandsnacks",
+                    "text_normalized": "Omhotelsweetandsnacks",
+                    "confidence": 0.9211884791200812,
+                    "composite_score": 0.9212,
+                    "bbox": [
+                        [
+                            80.0,
+                            473.0
+                        ],
+                        [
+                            289.0,
+                            473.0
+                        ],
+                        [
+                            289.0,
+                            489.0
+                        ],
+                        [
+                            80.0,
+                            489.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "R75",
+            "text_normalized": "₹75",
+            "confidence": 0.6463364511728287,
+            "composite_score": 1.1963,
+            "bbox": [
+                [
+                    409.0,
+                    471.0
+                ],
+                [
+                    441.0,
+                    471.0
+                ],
+                [
+                    441.0,
+                    491.0
+                ],
+                [
+                    409.0,
+                    491.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "R75",
+                    "text_normalized": "₹75",
+                    "confidence": 0.6463364511728287,
+                    "composite_score": 1.1963,
+                    "bbox": [
+                        [
+                            409.0,
+                            471.0
+                        ],
+                        [
+                            441.0,
+                            471.0
+                        ],
+                        [
+                            441.0,
+                            491.0
+                        ],
+                        [
+                            409.0,
+                            491.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "3September",
+            "text_normalized": "3September",
+            "confidence": 0.8899590102109042,
+            "composite_score": 0.89,
+            "bbox": [
+                [
+                    78.0,
+                    495.0
+                ],
+                [
+                    169.0,
+                    496.0
+                ],
+                [
+                    169.0,
+                    513.0
+                ],
+                [
+                    78.0,
+                    512.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "3September",
+                    "text_normalized": "3September",
+                    "confidence": 0.8899590102109042,
+                    "composite_score": 0.89,
+                    "bbox": [
+                        [
+                            78.0,
+                            495.0
+                        ],
+                        [
+                            169.0,
+                            496.0
+                        ],
+                        [
+                            169.0,
+                            513.0
+                        ],
+                        [
+                            78.0,
+                            512.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "SAPAN KUMAR MANDAL",
+            "text_normalized": "SAPAN KUMAR MANDAL",
+            "confidence": 0.8100357965419167,
+            "composite_score": 0.81,
+            "bbox": [
+                [
+                    80.0,
+                    549.0
+                ],
+                [
+                    267.0,
+                    549.0
+                ],
+                [
+                    267.0,
+                    565.0
+                ],
+                [
+                    80.0,
+                    565.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "SAPAN KUMAR MANDAL",
+                    "text_normalized": "SAPAN KUMAR MANDAL",
+                    "confidence": 0.8100357965419167,
+                    "composite_score": 0.81,
+                    "bbox": [
+                        [
+                            80.0,
+                            549.0
+                        ],
+                        [
+                            267.0,
+                            549.0
+                        ],
+                        [
+                            267.0,
+                            565.0
+                        ],
+                        [
+                            80.0,
+                            565.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "110",
+            "text_normalized": "110",
+            "confidence": 0.7390768826007843,
+            "composite_score": 1.0391,
+            "bbox": [
+                [
+                    404.0,
+                    548.0
+                ],
+                [
+                    441.0,
+                    548.0
+                ],
+                [
+                    441.0,
+                    567.0
+                ],
+                [
+                    404.0,
+                    567.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "110",
+                    "text_normalized": "110",
+                    "confidence": 0.7390768826007843,
+                    "composite_score": 1.0391,
+                    "bbox": [
+                        [
+                            404.0,
+                            548.0
+                        ],
+                        [
+                            441.0,
+                            548.0
+                        ],
+                        [
+                            441.0,
+                            567.0
+                        ],
+                        [
+                            404.0,
+                            567.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "2September",
+            "text_normalized": "2September",
+            "confidence": 0.8655950372869318,
+            "composite_score": 0.8656,
+            "bbox": [
+                [
+                    79.0,
+                    572.0
+                ],
+                [
+                    168.0,
+                    573.0
+                ],
+                [
+                    168.0,
+                    589.0
+                ],
+                [
+                    78.0,
+                    588.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "2September",
+                    "text_normalized": "2September",
+                    "confidence": 0.8655950372869318,
+                    "composite_score": 0.8656,
+                    "bbox": [
+                        [
+                            79.0,
+                            572.0
+                        ],
+                        [
+                            168.0,
+                            573.0
+                        ],
+                        [
+                            168.0,
+                            589.0
+                        ],
+                        [
+                            78.0,
+                            588.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "SBIATM CASH WITHDRAWAL",
+            "text_normalized": "SBIATM CASH WITHDRAWAL",
+            "confidence": 0.9127784164055534,
+            "composite_score": 0.9128,
+            "bbox": [
+                [
+                    79.0,
+                    625.0
+                ],
+                [
+                    301.0,
+                    625.0
+                ],
+                [
+                    301.0,
+                    641.0
+                ],
+                [
+                    79.0,
+                    641.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "SBIATM CASH WITHDRAWAL",
+                    "text_normalized": "SBIATM CASH WITHDRAWAL",
+                    "confidence": 0.9127784164055534,
+                    "composite_score": 0.9128,
+                    "bbox": [
+                        [
+                            79.0,
+                            625.0
+                        ],
+                        [
+                            301.0,
+                            625.0
+                        ],
+                        [
+                            301.0,
+                            641.0
+                        ],
+                        [
+                            79.0,
+                            641.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "75,000",
+            "text_normalized": "₹5,000",
+            "confidence": 0.5942896519388471,
+            "composite_score": 1.2943,
+            "bbox": [
+                [
+                    382.0,
+                    624.0
+                ],
+                [
+                    440.0,
+                    624.0
+                ],
+                [
+                    440.0,
+                    642.0
+                ],
+                [
+                    382.0,
+                    642.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "75,000",
+                    "text_normalized": "₹5,000",
+                    "confidence": 0.5942896519388471,
+                    "composite_score": 1.2943,
+                    "bbox": [
+                        [
+                            382.0,
+                            624.0
+                        ],
+                        [
+                            440.0,
+                            624.0
+                        ],
+                        [
+                            440.0,
+                            642.0
+                        ],
+                        [
+                            382.0,
+                            642.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "THROUGH UPI",
+            "text_normalized": "THROUGH UPI",
+            "confidence": 0.8636234899361929,
+            "composite_score": 0.8636,
+            "bbox": [
+                [
+                    79.0,
+                    649.0
+                ],
+                [
+                    190.0,
+                    649.0
+                ],
+                [
+                    190.0,
+                    666.0
+                ],
+                [
+                    79.0,
+                    666.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "THROUGH UPI",
+                    "text_normalized": "THROUGH UPI",
+                    "confidence": 0.8636234899361929,
+                    "composite_score": 0.8636,
+                    "bbox": [
+                        [
+                            79.0,
+                            649.0
+                        ],
+                        [
+                            190.0,
+                            649.0
+                        ],
+                        [
+                            190.0,
+                            666.0
+                        ],
+                        [
+                            79.0,
+                            666.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "2September",
+            "text_normalized": "2September",
+            "confidence": 0.88291151415218,
+            "composite_score": 0.8829,
+            "bbox": [
+                [
+                    78.0,
+                    672.0
+                ],
+                [
+                    168.0,
+                    672.0
+                ],
+                [
+                    168.0,
+                    689.0
+                ],
+                [
+                    78.0,
+                    689.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "2September",
+                    "text_normalized": "2September",
+                    "confidence": 0.88291151415218,
+                    "composite_score": 0.8829,
+                    "bbox": [
+                        [
+                            78.0,
+                            672.0
+                        ],
+                        [
+                            168.0,
+                            672.0
+                        ],
+                        [
+                            168.0,
+                            689.0
+                        ],
+                        [
+                            78.0,
+                            689.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "MS SATYAM SERVICE STA",
+            "text_normalized": "MS SATYAM SERVICE STA",
+            "confidence": 0.8443006195805289,
+            "composite_score": 0.8443,
+            "bbox": [
+                [
+                    79.0,
+                    726.0
+                ],
+                [
+                    275.0,
+                    726.0
+                ],
+                [
+                    275.0,
+                    742.0
+                ],
+                [
+                    79.0,
+                    742.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "MS SATYAM SERVICE STA",
+                    "text_normalized": "MS SATYAM SERVICE STA",
+                    "confidence": 0.8443006195805289,
+                    "composite_score": 0.8443,
+                    "bbox": [
+                        [
+                            79.0,
+                            726.0
+                        ],
+                        [
+                            275.0,
+                            726.0
+                        ],
+                        [
+                            275.0,
+                            742.0
+                        ],
+                        [
+                            79.0,
+                            742.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "R2,200",
+            "text_normalized": "₹2,200",
+            "confidence": 0.7616850478308541,
+            "composite_score": 1.4617,
+            "bbox": [
+                [
+                    384.0,
+                    724.0
+                ],
+                [
+                    441.0,
+                    724.0
+                ],
+                [
+                    441.0,
+                    744.0
+                ],
+                [
+                    384.0,
+                    744.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "R2,200",
+                    "text_normalized": "₹2,200",
+                    "confidence": 0.7616850478308541,
+                    "composite_score": 1.4617,
+                    "bbox": [
+                        [
+                            384.0,
+                            724.0
+                        ],
+                        [
+                            441.0,
+                            724.0
+                        ],
+                        [
+                            441.0,
+                            744.0
+                        ],
+                        [
+                            384.0,
+                            744.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "2September2026at2:35pm",
+            "text_normalized": "2September2026at2:35pm",
+            "confidence": 0.8692911189535389,
+            "composite_score": 0.8693,
+            "bbox": [
+                [
+                    79.0,
+                    749.0
+                ],
+                [
+                    274.0,
+                    750.0
+                ],
+                [
+                    274.0,
+                    765.0
+                ],
+                [
+                    79.0,
+                    764.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "2September2026at2:35pm",
+                    "text_normalized": "2September2026at2:35pm",
+                    "confidence": 0.8692911189535389,
+                    "composite_score": 0.8693,
+                    "bbox": [
+                        [
+                            79.0,
+                            749.0
+                        ],
+                        [
+                            274.0,
+                            750.0
+                        ],
+                        [
+                            274.0,
+                            765.0
+                        ],
+                        [
+                            79.0,
+                            764.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "POOJA",
+            "text_normalized": "POOJA",
+            "confidence": 0.8281585176785787,
+            "composite_score": 0.8282,
+            "bbox": [
+                [
+                    78.0,
+                    801.0
+                ],
+                [
+                    137.0,
+                    801.0
+                ],
+                [
+                    137.0,
+                    819.0
+                ],
+                [
+                    78.0,
+                    819.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "POOJA",
+                    "text_normalized": "POOJA",
+                    "confidence": 0.8281585176785787,
+                    "composite_score": 0.8282,
+                    "bbox": [
+                        [
+                            78.0,
+                            801.0
+                        ],
+                        [
+                            137.0,
+                            801.0
+                        ],
+                        [
+                            137.0,
+                            819.0
+                        ],
+                        [
+                            78.0,
+                            819.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "R120",
+            "text_normalized": "₹120",
+            "confidence": 0.6661717891693115,
+            "composite_score": 1.2162,
+            "bbox": [
+                [
+                    400.0,
+                    800.0
+                ],
+                [
+                    441.0,
+                    800.0
+                ],
+                [
+                    441.0,
+                    820.0
+                ],
+                [
+                    400.0,
+                    820.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "R120",
+                    "text_normalized": "₹120",
+                    "confidence": 0.6661717891693115,
+                    "composite_score": 1.2162,
+                    "bbox": [
+                        [
+                            400.0,
+                            800.0
+                        ],
+                        [
+                            441.0,
+                            800.0
+                        ],
+                        [
+                            441.0,
+                            820.0
+                        ],
+                        [
+                            400.0,
+                            820.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "2September",
+            "text_normalized": "2September",
+            "confidence": 0.8967606208541177,
+            "composite_score": 0.8968,
+            "bbox": [
+                [
+                    78.0,
+                    824.0
+                ],
+                [
+                    168.0,
+                    825.0
+                ],
+                [
+                    168.0,
+                    843.0
+                ],
+                [
+                    78.0,
+                    841.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "2September",
+                    "text_normalized": "2September",
+                    "confidence": 0.8967606208541177,
+                    "composite_score": 0.8968,
+                    "bbox": [
+                        [
+                            78.0,
+                            824.0
+                        ],
+                        [
+                            168.0,
+                            825.0
+                        ],
+                        [
+                            168.0,
+                            843.0
+                        ],
+                        [
+                            78.0,
+                            841.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "Sri Ram store",
+            "text_normalized": "Sri Ram store",
+            "confidence": 0.8075597626822335,
+            "composite_score": 0.8076,
+            "bbox": [
+                [
+                    79.0,
+                    877.0
+                ],
+                [
+                    183.0,
+                    878.0
+                ],
+                [
+                    183.0,
+                    895.0
+                ],
+                [
+                    79.0,
+                    894.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "Sri Ram store",
+                    "text_normalized": "Sri Ram store",
+                    "confidence": 0.8075597626822335,
+                    "composite_score": 0.8076,
+                    "bbox": [
+                        [
+                            79.0,
+                            877.0
+                        ],
+                        [
+                            183.0,
+                            878.0
+                        ],
+                        [
+                            183.0,
+                            895.0
+                        ],
+                        [
+                            79.0,
+                            894.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "138",
+            "text_normalized": "138",
+            "confidence": 0.7032644897699356,
+            "composite_score": 1.0033,
+            "bbox": [
+                [
+                    402.0,
+                    877.0
+                ],
+                [
+                    440.0,
+                    877.0
+                ],
+                [
+                    440.0,
+                    895.0
+                ],
+                [
+                    402.0,
+                    895.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "138",
+                    "text_normalized": "138",
+                    "confidence": 0.7032644897699356,
+                    "composite_score": 1.0033,
+                    "bbox": [
+                        [
+                            402.0,
+                            877.0
+                        ],
+                        [
+                            440.0,
+                            877.0
+                        ],
+                        [
+                            440.0,
+                            895.0
+                        ],
+                        [
+                            402.0,
+                            895.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "1September",
+            "text_normalized": "1September",
+            "confidence": 0.8446717804128473,
+            "composite_score": 0.8447,
+            "bbox": [
+                [
+                    78.0,
+                    900.0
+                ],
+                [
+                    166.0,
+                    901.0
+                ],
+                [
+                    166.0,
+                    920.0
+                ],
+                [
+                    78.0,
+                    919.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "1September",
+                    "text_normalized": "1September",
+                    "confidence": 0.8446717804128473,
+                    "composite_score": 0.8447,
+                    "bbox": [
+                        [
+                            78.0,
+                            900.0
+                        ],
+                        [
+                            166.0,
+                            901.0
+                        ],
+                        [
+                            166.0,
+                            920.0
+                        ],
+                        [
+                            78.0,
+                            919.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "VIKASH MUNDHRA",
+            "text_normalized": "VIKASH MUNDHRA",
+            "confidence": 0.8608289281527202,
+            "composite_score": 0.8608,
+            "bbox": [
+                [
+                    80.0,
+                    954.0
+                ],
+                [
+                    224.0,
+                    954.0
+                ],
+                [
+                    224.0,
+                    971.0
+                ],
+                [
+                    80.0,
+                    971.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "VIKASH MUNDHRA",
+                    "text_normalized": "VIKASH MUNDHRA",
+                    "confidence": 0.8608289281527202,
+                    "composite_score": 0.8608,
+                    "bbox": [
+                        [
+                            80.0,
+                            954.0
+                        ],
+                        [
+                            224.0,
+                            954.0
+                        ],
+                        [
+                            224.0,
+                            971.0
+                        ],
+                        [
+                            80.0,
+                            971.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "425",
+            "text_normalized": "425",
+            "confidence": 0.7439823001623154,
+            "composite_score": 1.044,
+            "bbox": [
+                [
+                    399.0,
+                    952.0
+                ],
+                [
+                    441.0,
+                    952.0
+                ],
+                [
+                    441.0,
+                    973.0
+                ],
+                [
+                    399.0,
+                    973.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "425",
+                    "text_normalized": "425",
+                    "confidence": 0.7439823001623154,
+                    "composite_score": 1.044,
+                    "bbox": [
+                        [
+                            399.0,
+                            952.0
+                        ],
+                        [
+                            441.0,
+                            952.0
+                        ],
+                        [
+                            441.0,
+                            973.0
+                        ],
+                        [
+                            399.0,
+                            973.0
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "text": "1September",
+            "text_normalized": "1September",
+            "confidence": 0.8141320998018439,
+            "composite_score": 0.8141,
+            "bbox": [
+                [
+                    78.0,
+                    977.0
+                ],
+                [
+                    166.0,
+                    978.0
+                ],
+                [
+                    166.0,
+                    995.0
+                ],
+                [
+                    78.0,
+                    994.0
+                ]
+            ],
+            "candidates_count": 1,
+            "candidates": [
+                {
+                    "text": "1September",
+                    "text_normalized": "1September",
+                    "confidence": 0.8141320998018439,
+                    "composite_score": 0.8141,
+                    "bbox": [
+                        [
+                            78.0,
+                            977.0
+                        ],
+                        [
+                            166.0,
+                            978.0
+                        ],
+                        [
+                            166.0,
+                            995.0
+                        ],
+                        [
+                            78.0,
+                            994.0
+                        ]
+                    ]
+                }
+            ]
+        }
+    ]
+}

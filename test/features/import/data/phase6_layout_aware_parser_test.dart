@@ -834,5 +834,134 @@ Unknown Payee Info
         expect(results.first.title, contains('Unknown Payee Info'));
       },
     );
+
+    test('User Screenshot 1: GPay Single Receipt (To DIPALI BAL ₹40 Completed)', () {
+      const gpayReceiptText = '''
+To DIPALI BAL
+₹40
+Pay again
+Completed
+14 Sept 2026, 7:53 pm
+HDFC Bank 2711
+UPI transaction ID
+129613467802
+To: DIPALI BAL
+PhonePe • ......6834@ybl
+From: SUMIT KUMAR DANDIA (HDFC Bank)
+Google Pay • ....39-1@okhdfcbank
+Google transaction ID
+CICAgPiE_s_-Ow
+Having issues? Share Split expense
+''';
+      final results = parser.parse(OcrDocument.fromText(gpayReceiptText));
+      expect(results.length, equals(1));
+      final res = results.first;
+      expect(res.amount, equals(4000));
+      expect(res.merchant, equals('DIPALI BAL'));
+      expect(res.type.name, equals('expense'));
+      expect(res.date, isNotNull);
+      expect(res.date!.year, equals(2026));
+      expect(res.date!.month, equals(9));
+      expect(res.date!.day, equals(14));
+    });
+
+    test('User Screenshot 2: PhonePe History with 7 transactions (including + ₹income)', () {
+      const phonePeHistoryText = '''
+History
+Search
+
+Received from
+Subashish Cst
++ ₹2,500
+13 Sept
+Credited to
+
+Payment to
+ICCL Mutual Funds Autopay
+₹1,500
+08 Sept
+Debited from
+
+Received from
+PARIKSIT INCORPORATION INDIA ...
++ ₹8,000
+07 Sept
+Credited to
+
+Received from
+Baba
++ ₹1
+07 Sept
+Credited to
+
+Paid to
+RELIANCE JIO INFOCOMM
+₹349
+04 Sept
+Debited from
+
+Paid to
+Baba
+₹1
+02 Sept
+Debited from
+
+Paid to
+Baba
+₹1
+Debited from
+''';
+      final results = parser.parse(OcrDocument.fromText(phonePeHistoryText));
+      expect(results.length, equals(7));
+
+      final amounts = results.map((r) => r.amount).toList();
+      expect(amounts, equals([250000, 150000, 800000, 100, 34900, 100, 100]));
+
+      // Verify income vs expense
+      expect(results[0].type.name, equals('income')); // + ₹2,500
+      expect(results[1].type.name, equals('expense')); // ₹1,500
+      expect(results[2].type.name, equals('income')); // + ₹8,000
+      expect(results[3].type.name, equals('income')); // + ₹1
+      expect(results[4].type.name, equals('expense')); // ₹349
+      expect(results[5].type.name, equals('expense')); // ₹1
+      expect(results[6].type.name, equals('expense')); // ₹1
+
+      // Verify merchants
+      expect(results[0].merchant, equals('Subashish Cst'));
+      expect(results[1].merchant, equals('ICCL Mutual Funds Autopay'));
+      expect(results[2].merchant, equals('PARIKSIT INCORPORATION INDIA ...'));
+      expect(results[4].merchant, equals('RELIANCE JIO INFOCOMM'));
+    });
+
+    test('User Screenshot 3: PhonePe Single Receipt (Paid to Shiva ₹70 with debit footer ignored)', () {
+      const phonePeReceiptText = '''
+Transaction Successful
+07:13 pm on 14 Aug 2026
+Paid to
+Shiva
+₹70
++91 ••••• •7520
+Banking Name : Shivananda Behera
+Transfer Details
+PhonePe Transaction ID
+T2608141913285247517140
+Debited from
+sumit639
+₹70
+UTR: 222043769084
+Send Again View History Split Expense Share Receipt
+Contact PhonePe Support
+''';
+      final results = parser.parse(OcrDocument.fromText(phonePeReceiptText));
+      expect(results.length, equals(1));
+      final res = results.first;
+      expect(res.amount, equals(7000));
+      expect(res.merchant, equals('Shiva'));
+      expect(res.type.name, equals('expense'));
+      expect(res.date, isNotNull);
+      expect(res.date!.year, equals(2026));
+      expect(res.date!.month, equals(8));
+      expect(res.date!.day, equals(14));
+    });
   });
 }

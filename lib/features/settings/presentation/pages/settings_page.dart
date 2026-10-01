@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/services/export_csv_service.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../../import/presentation/providers/import_providers.dart';
-import '../../../transactions/presentation/providers/transaction_providers.dart';
+import '../../../import/presentation/providers/pending_import_providers.dart';
 import '../../domain/entities/app_settings.dart';
 import '../providers/settings_providers.dart';
+import '../widgets/sms_exceptions_sheet.dart';
 
-/// Full Settings & Customization Page.
+/// Clean, modular Settings Hub navigating to dedicated sub-pages for Customization & Data.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final primaryTextColor =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final cardBg = isDark ? AppColors.darkSurface : AppColors.white;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     final settings = ref.watch(settingsNotifierProvider);
     final notifier = ref.read(settingsNotifierProvider.notifier);
+    final soundService = ref.read(soundServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -31,20 +36,34 @@ class SettingsPage extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: AppSpacing.navPillClearance,
+          ),
           children: [
-            // 0. PROFILE & PERSONALIZATION SECTION
+            // 0. PROFILE & PERSONALIZATION
             const _SectionHeader(
-              title: 'Profile & Personalization',
+              title: 'Profile',
               icon: Icons.person_outline_rounded,
             ),
             _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
               children: [
                 ListTile(
-                  leading: const Icon(
-                    Icons.badge_outlined,
-                    color: AppColors.primaryPurple,
-                    size: 22,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.badge_outlined,
+                      color: primaryColor,
+                      size: 20,
+                    ),
                   ),
                   title: const Text(
                     'Your Name',
@@ -52,626 +71,619 @@ class SettingsPage extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     settings.userName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: secondaryTextColor,
-                    ),
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
                   ),
                   trailing: const Icon(Icons.edit_outlined, size: 18),
-                  onTap: () => _editUserName(context, ref, settings.userName),
+                  onTap: () {
+                    soundService.playButton();
+                    _editUserName(context, ref, settings.userName);
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 20),
 
-            // 1. APPEARANCE SECTION
-            const _SectionHeader(title: 'Appearance', icon: Icons.palette_outlined),
+            // 1. APPEARANCE & CUSTOMIZATION
+            const _SectionHeader(
+              title: 'Appearance',
+              icon: Icons.palette_outlined,
+            ),
             _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
               children: [
-                // Theme Mode Selector
-                _SettingTile(
-                  title: 'Theme Mode',
-                  subtitle: settings.themeMode.label,
-                  leadingIcon: settings.themeMode.icon,
-                  trailing: DropdownButtonHideUnderline(
-                    child: DropdownButton<AppThemeMode>(
-                      value: settings.themeMode,
-                      dropdownColor:
-                          isDark ? AppColors.darkSurface : AppColors.white,
-                      items: AppThemeMode.values.map((mode) {
-                        return DropdownMenuItem(
-                          value: mode,
-                          child: Row(
-                            children: [
-                              Icon(mode.icon, size: 16),
-                              const SizedBox(width: 8),
-                              Text(mode.label, style: const TextStyle(fontSize: 13)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (mode) {
-                        if (mode != null) notifier.updateThemeMode(mode);
-                      },
+                ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: settings.accentColor.gradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.color_lens_rounded,
+                      color: Colors.white,
+                      size: 20,
                     ),
                   ),
-                ),
-                const Divider(height: 1),
-
-                // Accent Color Selector
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Accent Color',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Selected: ${settings.accentColor.label}',
-                        style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: AppAccentColor.values.map((color) {
-                          final isSelected = settings.accentColor == color;
-                          return GestureDetector(
-                            onTap: () => notifier.updateAccentColor(color),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                gradient: color.gradient,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? (isDark ? AppColors.white : Colors.black)
-                                      : Colors.transparent,
-                                  width: isSelected ? 3 : 0,
-                                ),
-                                boxShadow: [
-                                  if (isSelected)
-                                    BoxShadow(
-                                      color: color.primary.withValues(alpha: 0.45),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                ],
-                              ),
-                              child: isSelected
-                                  ? const Center(
-                                      child: Icon(
-                                        Icons.check_rounded,
-                                        color: AppColors.white,
-                                        size: 22,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                  title: const Text(
+                    'UI Customization',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
+                  subtitle: Text(
+                    '${settings.themeMode.label} • ${settings.accentColor.label} • ${settings.fontPreset.label}',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    soundService.playButton();
+                    context.push('/settings/customization');
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 20),
 
-            // 2. DASHBOARD CUSTOMIZATION SECTION
+            // 2. DATA MANAGEMENT
             const _SectionHeader(
-              title: 'Dashboard Preferences',
-              icon: Icons.dashboard_customize_outlined,
+              title: 'Data & Storage',
+              icon: Icons.storage_rounded,
             ),
             _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
               children: [
-                SwitchListTile.adaptive(
-                  title: const Text('Show Total Balance', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Display net balance card on home screen', style: TextStyle(fontSize: 12)),
-                  value: settings.dashboardPreferences.showBalance,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateDashboardPreferences(
-                      settings.dashboardPreferences.copyWith(showBalance: val),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  title: const Text('Show Spending Summary', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Display monthly income and expense totals', style: TextStyle(fontSize: 12)),
-                  value: settings.dashboardPreferences.showSpendingSummary,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateDashboardPreferences(
-                      settings.dashboardPreferences.copyWith(showSpendingSummary: val),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  title: const Text('Show Quick Actions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Display add, scan, and analytics shortcuts', style: TextStyle(fontSize: 12)),
-                  value: settings.dashboardPreferences.showQuickActions,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateDashboardPreferences(
-                      settings.dashboardPreferences.copyWith(showQuickActions: val),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  title: const Text('Show Recent Transactions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Display recent activity feed on dashboard', style: TextStyle(fontSize: 12)),
-                  value: settings.dashboardPreferences.showRecentTransactions,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateDashboardPreferences(
-                      settings.dashboardPreferences.copyWith(showRecentTransactions: val),
-                    );
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.successGreen.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.folder_shared_outlined,
+                      color: AppColors.successGreen,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Data Management',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Local database metrics, JSON export & data reset',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    soundService.playButton();
+                    context.push('/settings/data');
                   },
                 ),
               ],
             ),
             const SizedBox(height: 20),
 
-            // 3. OCR & IMPORT SETTINGS
-            const _SectionHeader(title: 'OCR & Screenshot Import', icon: Icons.document_scanner_outlined),
+            // 3. SOUND & AUDIO FEEDBACK
+            const _SectionHeader(
+              title: 'Sound & Audio',
+              icon: Icons.volume_up_outlined,
+            ),
             _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
               children: [
-                // OCR Engine Mode Selector
-                _SettingTile(
-                  title: 'OCR Engine Mode',
-                  subtitle: settings.ocrSettings.engineMode.description,
-                  leadingIcon: settings.ocrSettings.engineMode == OcrEngineMode.offline
-                      ? Icons.memory_rounded
-                      : Icons.cloud_sync_rounded,
+                SwitchListTile(
+                  title: const Text(
+                    'Sound Effects',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Subtle clicks and confirmation chimes for transactions and buttons',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  value: settings.soundEnabled,
+                  activeThumbColor: primaryColor,
+                  onChanged: (enabled) {
+                    notifier.updateSoundEnabled(enabled);
+                    if (enabled) {
+                      soundService.playButton();
+                    }
+                  },
+                ),
+                if (settings.soundEnabled) ...[
+                  Divider(color: borderColor, height: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Volume',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            Text(
+                              '${(settings.soundVolume * 100).round()}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: settings.soundVolume,
+                          activeColor: primaryColor,
+                          inactiveColor: primaryColor.withValues(alpha: 0.2),
+                          onChanged: (val) {
+                            notifier.updateSoundVolume(val);
+                          },
+                          onChangeEnd: (_) {
+                            soundService.playButton();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            // 4. NOTIFICATIONS
+            const _SectionHeader(
+              title: 'Notifications',
+              icon: Icons.notifications_outlined,
+            ),
+            _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.notifications_active_outlined,
+                      color: primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Inbox Ready Alerts',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Get notified when shared screenshot transactions are ready in your inbox',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () async {
+                    soundService.playButton();
+                    await ref
+                        .read(shareImportServiceProvider)
+                        .requestNotificationPermission();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notifications active for inbox readiness'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 5. BANK SMS DETECTION & BACKGROUND SYNC
+            const _SectionHeader(
+              title: 'Bank SMS Detection',
+              icon: Icons.sms_outlined,
+            ),
+            _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
+              children: [
+                SwitchListTile(
+                  title: const Text(
+                    'Auto-detect Bank SMS',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    settings.autoDetectBankSms
+                        ? 'Active: incoming bank & UPI alerts are parsed and staged in your Inbox'
+                        : 'Off: background SMS listening is disabled to conserve battery',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  value: settings.autoDetectBankSms,
+                  activeThumbColor: primaryColor,
+                  onChanged: (enabled) async {
+                    soundService.playButton();
+                    await notifier.updateAutoDetectBankSms(enabled);
+                    await ref.read(bankSmsServiceProvider).setDetectionEnabled(enabled);
+                    if (enabled) {
+                      await ref.read(bankSmsServiceProvider).requestPermission();
+                    }
+                  },
+                ),
+                if (settings.autoDetectBankSms) ...[
+                  Divider(color: borderColor, height: 1),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.battery_charging_full_rounded,
+                        color: AppColors.primaryPurple,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Background Reliability',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      'Allow unrestricted background activity so Android does not delay alerts',
+                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                    ),
+                    trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                    onTap: () async {
+                      soundService.playButton();
+                      await ref.read(bankSmsServiceProvider).openBatteryOptimizationSettings();
+                    },
+                  ),
+                  Divider(color: borderColor, height: 1),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.filter_list_off_rounded,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Ignored SMS Keywords & Exceptions',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      '${settings.smsExcludedKeywords.length} active filters • Ignore promotional alerts',
+                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                    onTap: () {
+                      soundService.playButton();
+                      SmsExceptionsSheet.show(context);
+                    },
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 5. OCR ENGINE
+            const _SectionHeader(
+              title: 'OCR Scanner',
+              icon: Icons.document_scanner_outlined,
+            ),
+            _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.memory_rounded, size: 22),
+                  title: const Text(
+                    'Engine Mode',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    settings.ocrSettings.engineMode.label,
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
                   trailing: DropdownButtonHideUnderline(
                     child: DropdownButton<OcrEngineMode>(
                       value: settings.ocrSettings.engineMode,
-                      dropdownColor:
-                          isDark ? AppColors.darkSurface : AppColors.white,
+                      dropdownColor: cardBg,
                       items: OcrEngineMode.values.map((mode) {
-                        final isOffline = mode == OcrEngineMode.offline;
                         return DropdownMenuItem(
                           value: mode,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isOffline ? Icons.offline_bolt_rounded : Icons.terminal_rounded,
-                                size: 16,
-                                color: isOffline ? AppColors.successGreen : AppColors.primaryPurple,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                isOffline ? 'Offline (ONNX)' : 'Python API',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                          child: Text(
+                            mode.label.split(' ').first,
+                            style: const TextStyle(fontSize: 13),
                           ),
                         );
                       }).toList(),
                       onChanged: (mode) {
-                        if (mode != null) notifier.updateOcrEngineMode(mode);
+                        if (mode != null) {
+                          soundService.playButton();
+                          notifier.updateOcrEngineMode(mode);
+                        }
                       },
                     ),
                   ),
                 ),
-                if (settings.ocrSettings.engineMode == OcrEngineMode.api) ...[
-                  const Divider(height: 1),
-                  // Endpoint Version Selector (V1 vs V2)
-                  _SettingTile(
-                    title: 'API Version & Endpoint',
-                    subtitle: settings.ocrSettings.apiVersion.description,
-                    leadingIcon: Icons.route_rounded,
-                    trailing: DropdownButtonHideUnderline(
-                      child: DropdownButton<PythonApiVersion>(
-                        value: settings.ocrSettings.apiVersion,
-                        dropdownColor:
-                            isDark ? AppColors.darkSurface : AppColors.white,
-                        items: PythonApiVersion.values.map((v) {
-                          return DropdownMenuItem(
-                            value: v,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  v == PythonApiVersion.v2
-                                      ? Icons.auto_awesome_rounded
-                                      : Icons.history_rounded,
-                                  size: 15,
-                                  color: v == PythonApiVersion.v2
-                                      ? AppColors.brightViolet
-                                      : AppColors.gray600,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  v.label,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (version) {
-                          if (version != null) {
-                            notifier.updateOcrApiVersion(version);
-                          }
-                        },
-                      ),
-                    ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 5. ABOUT APP
+            const _SectionHeader(
+              title: 'About',
+              icon: Icons.info_outline_rounded,
+            ),
+            _SettingsCard(
+              cardBg: cardBg,
+              borderColor: borderColor,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.verified_outlined, size: 22),
+                  title: const Text(
+                    'ScanEx Expense Manager',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.link_rounded, size: 22, color: AppColors.primaryPurple),
-                    title: const Text('Python Server Endpoint', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      '${settings.ocrSettings.apiBaseUrl}${settings.ocrSettings.apiVersion.endpoint}',
-                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                    ),
-                    trailing: const Icon(Icons.edit_outlined, size: 18),
-                    onTap: () => _editApiUrl(context, ref, settings.ocrSettings.apiBaseUrl),
+                  subtitle: Text(
+                    'Version 1.0.0 (Phase 11.7)\n100% Offline • Private • On-Device ONNX OCR',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor, height: 1.4),
                   ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.network_check_rounded, size: 22, color: AppColors.primaryPurple),
-                    title: const Text('Test Endpoint Connection', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Send a health check probe to verify backend response', style: TextStyle(fontSize: 12)),
-                    trailing: const Icon(Icons.play_arrow_rounded, color: AppColors.primaryPurple),
-                    onTap: () => _testApiConnection(context, ref),
-                  ),
-                ],
-                const Divider(height: 1),
-                _SettingTile(
-                  title: 'Model & Rules Version',
-                  subtitle: settings.ocrSettings.engineMode == OcrEngineMode.offline
-                      ? 'Local ONNX: v1.0.0 · Rules: v1.0.0'
-                      : 'Remote FastAPI Server (${settings.ocrSettings.apiBaseUrl}${settings.ocrSettings.apiVersion.endpoint})',
-                  leadingIcon: Icons.rule_folder_outlined,
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+                Divider(color: borderColor, height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (settings.ocrSettings.engineMode == OcrEngineMode.offline
-                              ? AppColors.successGreen
-                              : AppColors.primaryPurple)
-                          .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
+                      color: AppColors.brightViolet.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      color: AppColors.brightViolet,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Play Protect & Security Guide',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Why APK sideloading shows a prompt & why ScanEx is 100% safe',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                  onTap: () {
+                    soundService.playButton();
+                    _showPlayProtectSafetyDialog(context, primaryColor, isDark);
+                  },
+                ),
+                Divider(color: borderColor, height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPurple.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.auto_stories_outlined,
+                      color: AppColors.primaryPurple,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Replay Welcome & Setup Tour',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'View feature animations & walkthrough again',
+                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                  onTap: () {
+                    soundService.playButton();
+                    context.push('/onboarding');
+                  },
+                ),
+                Divider(color: borderColor, height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Developer',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Sumit Kumar Dandia',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: primaryColor,
+                    ),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: primaryColor.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
                     ),
                     child: Text(
-                      settings.ocrSettings.engineMode == OcrEngineMode.offline
-                          ? '100% Offline'
-                          : 'Dev: ${settings.ocrSettings.apiVersion.value.toUpperCase()}',
+                      'Creator',
                       style: TextStyle(
-                        color: settings.ocrSettings.engineMode == OcrEngineMode.offline
-                            ? AppColors.successGreen
-                            : AppColors.primaryPurple,
                         fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
+                        color: primaryColor,
                       ),
                     ),
                   ),
                 ),
-                const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  title: const Text('Review Before Saving', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Inspect extracted items before adding to SQLite', style: TextStyle(fontSize: 12)),
-                  value: settings.ocrSettings.reviewBeforeSaving,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateOcrSettings(
-                      settings.ocrSettings.copyWith(reviewBeforeSaving: val),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  title: const Text('Duplicate Detection', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Automatically flag duplicate screenshot imports', style: TextStyle(fontSize: 12)),
-                  value: settings.ocrSettings.duplicateDetection,
-                  activeTrackColor: settings.accentColor.primary,
-                  onChanged: (val) {
-                    notifier.updateOcrSettings(
-                      settings.ocrSettings.copyWith(duplicateDetection: val),
-                    );
-                  },
-                ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // 4. DATA MANAGEMENT SECTION
-            const _SectionHeader(title: 'Data Management', icon: Icons.storage_rounded),
-            _SettingsCard(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.file_download_outlined, color: AppColors.primaryPurple),
-                  title: const Text('Export Transactions (CSV)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Export all transactions to standard CSV format', style: TextStyle(fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _exportCsv(context, ref),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.delete_forever_rounded, color: AppColors.errorRed),
-                  title: const Text('Clear All Transactions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.errorRed)),
-                  subtitle: const Text('Permanently delete all SQLite transaction records', style: TextStyle(fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.errorRed),
-                  onTap: () => _confirmClearAll(context, ref),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 5. ABOUT SECTION
-            const _SectionHeader(title: 'About', icon: Icons.info_outline_rounded),
-            const _SettingsCard(
-              children: [
-                _SettingTile(
-                  title: 'ScanEx Expense Tracker',
-                  subtitle: 'Version 1.0.0+1 · Local-First Architecture',
-                  leadingIcon: Icons.verified_user_outlined,
-                ),
-                Divider(height: 1),
-                _SettingTile(
-                  title: 'Privacy & Security',
-                  subtitle: 'All financial data & OCR models run 100% on your device. Zero telemetry.',
-                  leadingIcon: Icons.lock_outline_rounded,
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  void _editUserName(BuildContext context, WidgetRef ref, String currentName) {
-    final textController = TextEditingController(text: currentName);
-    String? localError;
-
+  void _showPlayProtectSafetyDialog(
+      BuildContext context, Color primaryColor, bool isDark) {
     showDialog<void>(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.person_outline_rounded,
-                    color: AppColors.primaryPurple,
-                  ),
-                  SizedBox(width: 8),
-                  Text('Your Name'),
-                ],
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.successGreen.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Update the name displayed on your dashboard greeting.',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: textController,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: 'Your Name',
-                      hintText: 'e.g. Alex',
-                      errorText: localError,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.badge_outlined),
-                    ),
-                    onChanged: (val) {
-                      if (localError != null) {
-                        setDialogState(() => localError = null);
-                      }
-                    },
-                  ),
-                ],
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: AppColors.successGreen,
+                size: 24,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final trimmed = textController.text.trim();
-                    if (trimmed.isEmpty) {
-                      setDialogState(() => localError = 'Please enter your name');
-                      return;
-                    }
-                    if (trimmed.length > 50) {
-                      setDialogState(
-                        () => localError = 'Name is too long (max 50 chars)',
-                      );
-                      return;
-                    }
-                    ref
-                        .read(settingsNotifierProvider.notifier)
-                        .updateUserName(trimmed);
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Name updated to "$trimmed"'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _exportCsv(BuildContext context, WidgetRef ref) async {
-    final transactions = await ref.read(transactionRepositoryProvider).getAllTransactions();
-    if (transactions.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No transactions to export.')),
-        );
-      }
-      return;
-    }
-
-    final csvContent = ExportCsvService.generateCsv(transactions);
-
-    if (context.mounted) {
-      showDialog<void>(
-        context: context,
-        builder: (ctx) {
-          return AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.description_outlined, color: AppColors.primaryPurple),
-                SizedBox(width: 8),
-                Text('CSV Export Ready'),
-              ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Generated ${transactions.length} transaction records in standard CSV format.',
-                  style: const TextStyle(fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SelectableText(
-                    csvContent.length > 300
-                        ? '${csvContent.substring(0, 300)}...\n[${transactions.length} total rows]'
-                        : csvContent,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Play Protect & Safety',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
-              FilledButton.icon(
-                icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copy CSV'),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: csvContent));
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('CSV copied to clipboard!')),
-                  );
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
-
-  void _confirmClearAll(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.errorRed),
-              SizedBox(width: 8),
-              Text('Delete All Transactions?'),
-            ],
-          ),
-          content: const Text(
-            'This action cannot be undone. All your locally recorded expense and income records will be permanently removed from SQLite storage.',
-            style: TextStyle(fontSize: 13),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.errorRed),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await ref.read(transactionRepositoryProvider).clearAllTransactions();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('All transactions deleted.')),
-                  );
-                }
-              },
-              child: const Text('Delete All'),
             ),
           ],
-        );
-      },
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Why did Google Play Protect show a warning?',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Play Protect automatically warns users whenever an APK is installed directly (sideloaded) outside the Google Play Store and signed with an open-source key.',
+                style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.gray500),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Why ScanEx is 100% Safe:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              _buildSafetyPoint(
+                Icons.code_rounded,
+                '100% Open Source',
+                'Every single line of code is open and auditable on GitHub.',
+              ),
+              const SizedBox(height: 6),
+              _buildSafetyPoint(
+                Icons.cloud_off_rounded,
+                '100% Local & Offline',
+                'No remote servers or cloud databases. Data never leaves your device.',
+              ),
+              const SizedBox(height: 6),
+              _buildSafetyPoint(
+                Icons.block_rounded,
+                'Zero Telemetry / Ads',
+                'No tracking SDKs, no advertisement trackers, no data brokers.',
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'How to install on other devices:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'When the "Blocked by Play Protect" dialog appears -> Tap "More details" -> Tap "Install anyway".',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brightViolet),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(backgroundColor: primaryColor),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
     );
   }
 
-  void _editApiUrl(BuildContext context, WidgetRef ref, String currentUrl) {
-    final textController = TextEditingController(text: currentUrl);
+  static Widget _buildSafetyPoint(
+      IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppColors.successGreen),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
+              children: [
+                TextSpan(
+                  text: '$title: ',
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.darkTextPrimary),
+                ),
+                TextSpan(text: description),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  void _editUserName(BuildContext context, WidgetRef ref, String currentName) {
+    final controller = TextEditingController(text: currentName);
     showDialog<void>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.terminal_rounded, color: AppColors.primaryPurple),
-              SizedBox(width: 8),
-              Text('Python API Base URL'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter the endpoint of your running FastAPI server:\n• Localhost: http://127.0.0.1:8000\n• Android Emulator: http://10.0.2.2:8000\n• Real Phone on LAN: http://192.168.x.x:8000',
-                style: TextStyle(fontSize: 12, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'API Base URL',
-                  hintText: 'http://127.0.0.1:8000',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link_rounded),
-                ),
-              ),
-            ],
+          title: const Text('Edit Your Name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              hintText: 'Enter your name',
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
@@ -680,9 +692,9 @@ class SettingsPage extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () {
-                final text = textController.text.trim();
-                if (text.isNotEmpty) {
-                  ref.read(settingsNotifierProvider.notifier).updateOcrApiBaseUrl(text);
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty) {
+                  ref.read(settingsNotifierProvider.notifier).updateUserName(newName);
                 }
                 Navigator.pop(ctx);
               },
@@ -692,82 +704,6 @@ class SettingsPage extends ConsumerWidget {
         );
       },
     );
-  }
-
-  void _testApiConnection(BuildContext context, WidgetRef ref) async {
-    final ocrSettings = ref.read(settingsNotifierProvider).ocrSettings;
-    final api = ref.read(pythonOcrApiProvider);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 1),
-        content: Text('Testing ${ocrSettings.apiBaseUrl}${ocrSettings.apiVersion.endpoint}...'),
-      ),
-    );
-
-    final result = await api.testEndpoint();
-
-    if (context.mounted) {
-      showDialog<void>(
-        context: context,
-        builder: (ctx) {
-          final isSuccess = result.success;
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(
-                  isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-                  color: isSuccess ? AppColors.successGreen : AppColors.errorRed,
-                ),
-                const SizedBox(width: 8),
-                Text(isSuccess ? 'Server Online' : 'Connection Failed'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Endpoint: ${ocrSettings.apiBaseUrl}${ocrSettings.apiVersion.endpoint}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'API Version: ${ocrSettings.apiVersion.label}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Response Time: ${result.latencyMs} ms',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Status: ${result.message}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isSuccess ? AppColors.successGreen : AppColors.errorRed,
-                  ),
-                ),
-                if (!isSuccess) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Troubleshooting Tips:\n1. Ensure FastAPI server is running: `uvicorn main:app --reload --port 8000`\n2. For Android USB: run `adb reverse tcp:8000 tcp:8000`\n3. For Android Emulator: use `http://10.0.2.2:8000`',
-                    style: TextStyle(fontSize: 11, height: 1.4, color: AppColors.gray600),
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
-    }
   }
 }
 
@@ -780,18 +716,21 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.primaryPurple),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
           Text(
-            title,
+            title.toUpperCase(),
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              letterSpacing: 1.0,
+              color: color,
             ),
           ),
         ],
@@ -800,51 +739,30 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _SettingsCard extends StatelessWidget {
+class _SettingsCard extends ConsumerWidget {
+  final Color cardBg;
+  final Color borderColor;
   final List<Widget> children;
 
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.white,
-        borderRadius: AppSpacing.borderRadiusLarge,
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          width: 1,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: AppSpacing.borderRadiusLarge,
-        child: Column(children: children),
-      ),
-    );
-  }
-}
-
-class _SettingTile extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final IconData leadingIcon;
-  final Widget? trailing;
-
-  const _SettingTile({
-    required this.title,
-    this.subtitle,
-    required this.leadingIcon,
-    this.trailing,
+  const _SettingsCard({
+    required this.cardBg,
+    required this.borderColor,
+    required this.children,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(leadingIcon, size: 22, color: AppColors.primaryPurple),
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      subtitle: subtitle != null ? Text(subtitle!, style: const TextStyle(fontSize: 12)) : null,
-      trailing: trailing,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rounding = ref.watch(appCardRoundingProvider);
+    return Material(
+      color: cardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(rounding.radius),
+        side: BorderSide(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: children,
+      ),
     );
   }
 }

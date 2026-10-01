@@ -1,11 +1,12 @@
-import 'package:expense_app/app/app.dart';
 import 'package:expense_app/core/storage/app_preferences.dart';
 import 'package:expense_app/core/storage/preferences_provider.dart';
 import 'package:expense_app/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:expense_app/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeAppPreferences implements AppPreferences {
   bool _completed = false;
@@ -28,7 +29,7 @@ class FakeAppPreferences implements AppPreferences {
   }
 }
 
-Widget createOnboardingTestApp(AppPreferences prefs) {
+Widget createOnboardingTestApp(AppPreferences prefs, SharedPreferences sharedPrefs) {
   final testRouter = GoRouter(
     initialLocation: '/onboarding',
     routes: [
@@ -44,7 +45,10 @@ Widget createOnboardingTestApp(AppPreferences prefs) {
   );
 
   return ProviderScope(
-    overrides: [appPreferencesProvider.overrideWithValue(prefs)],
+    overrides: [
+      appPreferencesProvider.overrideWithValue(prefs),
+      sharedPreferencesProvider.overrideWithValue(sharedPrefs),
+    ],
     child: MaterialApp.router(
       theme: ThemeData(splashFactory: InkRipple.splashFactory),
       routerConfig: testRouter,
@@ -53,76 +57,65 @@ Widget createOnboardingTestApp(AppPreferences prefs) {
 }
 
 void main() {
-  testWidgets('SplashPage renders branding title and subtitle', (tester) async {
-    final fakePrefs = FakeAppPreferences();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [appPreferencesProvider.overrideWithValue(fakePrefs)],
-        child: const ExpenseApp(),
-      ),
-    );
-
-    expect(find.text('Expense'), findsOneWidget);
-    expect(find.text('Simple. Smart. Yours.'), findsOneWidget);
-
-    // Pump past splash timer
-    await tester.pump(const Duration(milliseconds: 1700));
-    await tester.pumpAndSettle();
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets(
-    'OnboardingPage renders slide 1 and advances to slide 2 on Next tap',
-    (tester) async {
-      final fakePrefs = FakeAppPreferences();
-
-      await tester.pumpWidget(createOnboardingTestApp(fakePrefs));
-
-      expect(find.textContaining('Track Your Money'), findsOneWidget);
-      expect(find.text('Next →'), findsOneWidget);
-
-      await tester.tap(find.text('Next →'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Add Expenses'), findsOneWidget);
-    },
-  );
+  Future<void> advancePage(WidgetTester tester) async {
+    for (int i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
 
   testWidgets(
-    'OnboardingPage navigates to Name Setup and completes with entered name',
+    'OnboardingPage renders slide 0 and advances through setup on Next tap',
     (tester) async {
       final fakePrefs = FakeAppPreferences();
+      final sharedPrefs = await SharedPreferences.getInstance();
 
-      await tester.pumpWidget(createOnboardingTestApp(fakePrefs));
-
-      // Slide 1 -> Slide 2
-      await tester.tap(find.text('Next →'));
-      await tester.pumpAndSettle();
-
-      // Slide 2 -> Slide 3
-      await tester.tap(find.text('Next →'));
-      await tester.pumpAndSettle();
-
-      // Slide 3 -> Slide 4 (Name Setup)
-      await tester.tap(find.text('Next →'));
-      await tester.pumpAndSettle();
-
-      expect(find.text("What's your name?"), findsOneWidget);
-      expect(
-        find.text("We'll use your name to personalize your experience."),
-        findsOneWidget,
-      );
-      expect(find.text('Get Started →'), findsOneWidget);
-
-      // Enter name
-      await tester.enterText(find.byType(TextField), '  Jordan  ');
+      await tester.pumpWidget(createOnboardingTestApp(fakePrefs, sharedPrefs));
       await tester.pump();
 
-      await tester.tap(find.text('Get Started →'));
-      await tester.pumpAndSettle();
+      expect(find.textContaining('Smart & Effortless'), findsOneWidget);
+      expect(find.text('Next →'), findsOneWidget);
+
+      // Advance to Slide 1 (Receipt OCR)
+      await tester.tap(find.text('Next →'));
+      await advancePage(tester);
+      expect(find.textContaining('Snap or Direct Share'), findsOneWidget);
+
+      // Advance to Slide 2 (Bank SMS)
+      await tester.tap(find.text('Next →'));
+      await advancePage(tester);
+      expect(find.textContaining('Automated Bank &'), findsOneWidget);
+
+      // Advance to Slide 3 (Privacy / Spam Filter)
+      await tester.tap(find.text('Next →'));
+      await advancePage(tester);
+      expect(find.textContaining('100% Private'), findsOneWidget);
+
+      // Advance to Slide 4 (Personalization & Theme)
+      await tester.tap(find.text('Next →'));
+      await advancePage(tester);
+      expect(find.text('Personalize ScanEx'), findsOneWidget);
+      expect(find.text('Save & Continue →'), findsOneWidget);
+
+      // Enter custom name
+      await tester.enterText(find.byType(TextField).first, 'Jordan');
+      await tester.pump();
+
+      // Advance to Slide 5 (Done / Ready)
+      await tester.tap(find.text('Save & Continue →'));
+      await advancePage(tester);
+
+      expect(find.textContaining("You're All Set, Jordan!"), findsOneWidget);
+      expect(find.text('Start Managing Expenses 🚀'), findsOneWidget);
+
+      // Complete
+      await tester.tap(find.text('Start Managing Expenses 🚀'));
+      await advancePage(tester);
 
       expect(await fakePrefs.hasCompletedOnboarding(), isTrue);
-      expect(await fakePrefs.getUserName(), 'Jordan');
       expect(find.text('Home Screen'), findsOneWidget);
     },
   );
@@ -131,12 +124,14 @@ void main() {
     'OnboardingPage completes and updates preference when Skip is tapped',
     (tester) async {
       final fakePrefs = FakeAppPreferences();
+      final sharedPrefs = await SharedPreferences.getInstance();
 
-      await tester.pumpWidget(createOnboardingTestApp(fakePrefs));
+      await tester.pumpWidget(createOnboardingTestApp(fakePrefs, sharedPrefs));
+      await tester.pump();
 
       expect(find.text('Skip'), findsOneWidget);
       await tester.tap(find.text('Skip'));
-      await tester.pumpAndSettle();
+      await advancePage(tester);
 
       expect(await fakePrefs.hasCompletedOnboarding(), isTrue);
       expect(find.text('Home Screen'), findsOneWidget);

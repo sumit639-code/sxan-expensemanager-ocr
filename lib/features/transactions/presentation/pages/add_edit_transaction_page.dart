@@ -6,12 +6,14 @@ import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/constants/category_constants.dart';
+import '../../../../core/services/sound_service.dart';
 import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
 import '../../../../shared/models/category_model.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/transaction_entity.dart';
+import '../../domain/services/category_suggestion_service.dart';
 import '../providers/transaction_providers.dart';
 
 /// Screen for creating a new transaction or editing an existing one.
@@ -39,8 +41,12 @@ class _AddEditTransactionPageState
   late TextEditingController _titleController;
   late TextEditingController _merchantController;
   late TextEditingController _noteController;
+  final FocusNode _amountFocusNode = FocusNode();
   late Category _selectedCategory;
   late DateTime _selectedDate;
+
+  bool _userExplicitlyPickedCategory = false;
+  CategorySuggestion? _activeSuggestion;
 
   bool _isSubmitting = false;
   String? _amountError;
@@ -71,18 +77,68 @@ class _AddEditTransactionPageState
         initial!.categoryId,
         _type,
       );
+      _userExplicitlyPickedCategory = true;
     } else {
       _selectedCategory = categories.first;
+    }
+
+    _titleController.addListener(_onTitleOrMerchantChanged);
+    _merchantController.addListener(_onTitleOrMerchantChanged);
+
+    if (!_isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _amountFocusNode.requestFocus();
+        }
+      });
     }
   }
 
   @override
   void dispose() {
+    _titleController.removeListener(_onTitleOrMerchantChanged);
+    _merchantController.removeListener(_onTitleOrMerchantChanged);
     _amountController.dispose();
+    _amountFocusNode.dispose();
     _titleController.dispose();
     _merchantController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  void _onTitleOrMerchantChanged() {
+    if (_userExplicitlyPickedCategory) return;
+    final title = _titleController.text.trim();
+    final merchant = _merchantController.text.trim();
+    if (title.isEmpty && merchant.isEmpty) {
+      if (_activeSuggestion != null) {
+        setState(() {
+          _activeSuggestion = null;
+        });
+      }
+      return;
+    }
+
+    final suggestion = CategorySuggestionService.suggestCategory(
+      title: title,
+      merchant: merchant,
+      type: _type,
+    );
+
+    if (suggestion != null) {
+      final category =
+          CategoryConstants.getCategoryById(suggestion.categoryId, _type);
+      if (category.id != _selectedCategory.id || _activeSuggestion == null) {
+        setState(() {
+          _selectedCategory = category;
+          _activeSuggestion = suggestion;
+        });
+      }
+    } else if (_activeSuggestion != null) {
+      setState(() {
+        _activeSuggestion = null;
+      });
+    }
   }
 
   void _onTypeChanged(TransactionType newType) {
@@ -91,8 +147,15 @@ class _AddEditTransactionPageState
     setState(() {
       _type = newType;
       final categories = CategoryConstants.getCategoriesForType(newType);
-      _selectedCategory = categories.first;
+      final isCompatible =
+          categories.any((c) => c.id == _selectedCategory.id);
+      if (!isCompatible) {
+        _selectedCategory = categories.first;
+        _userExplicitlyPickedCategory = false;
+      }
+      _activeSuggestion = null;
     });
+    _onTitleOrMerchantChanged();
   }
 
   Future<void> _selectDate() async {
@@ -195,19 +258,28 @@ class _AddEditTransactionPageState
 
       HapticFeedback.lightImpact();
 
+      if (_type == TransactionType.income) {
+        ref.read(soundServiceProvider).playIncomeAdded();
+      } else {
+        ref.read(soundServiceProvider).playExpenseAdded();
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isEditing ? 'Transaction updated' : 'Transaction added',
+            _isEditing
+                ? 'Transaction updated'
+                : '${_type == TransactionType.income ? "Income" : "Expense"} added • ₹${_amountController.text.trim()}',
           ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.primaryPurple,
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
 
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
+      ref.read(soundServiceProvider).playError();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Something went wrong. Please try again.'),
@@ -247,7 +319,12 @@ class _AddEditTransactionPageState
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: AppSpacing.navPillClearance,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -266,7 +343,7 @@ class _AddEditTransactionPageState
                           child: _SegmentTab(
                             label: 'Expense',
                             isSelected: _type == TransactionType.expense,
-                            activeColor: AppColors.primaryPurple,
+                            activeColor: Theme.of(context).colorScheme.primary,
                             onTap: () => _onTypeChanged(TransactionType.expense),
                           ),
                         ),
@@ -313,6 +390,7 @@ class _AddEditTransactionPageState
                             IntrinsicWidth(
                               child: TextField(
                                 controller: _amountController,
+                                focusNode: _amountFocusNode,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
@@ -375,13 +453,48 @@ class _AddEditTransactionPageState
                   const SizedBox(height: 20),
 
                   // Category Selection Grid
-                  Text(
-                    'Category *',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: primaryTextColor,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Category *',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                      if (_activeSuggestion != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.brightViolet.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 12,
+                                color: AppColors.brightViolet,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _activeSuggestion!.reason,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.brightViolet,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Wrap(
@@ -394,6 +507,8 @@ class _AddEditTransactionPageState
                           HapticFeedback.selectionClick();
                           setState(() {
                             _selectedCategory = cat;
+                            _userExplicitlyPickedCategory = true;
+                            _activeSuggestion = null;
                           });
                         },
                         child: AnimatedContainer(
@@ -510,8 +625,10 @@ class _AddEditTransactionPageState
                 // Note Input (Optional)
                 AppTextField(
                   label: 'Note (Optional)',
-                  hintText: 'Additional details...',
+                  hintText: 'Additional details or full message...',
                   controller: _noteController,
+                  minLines: 5,
+                  maxLines: null,
                 ),
                 const SizedBox(height: 32),
 

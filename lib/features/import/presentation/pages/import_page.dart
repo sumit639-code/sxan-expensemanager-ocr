@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/services/sound_service.dart';
 import '../providers/import_providers.dart';
 import '../providers/import_state.dart';
+import '../views/import_success_view.dart';
 import '../views/preview_screenshots_view.dart';
 import '../views/processing_screenshots_view.dart';
 import '../views/review_transactions_view.dart';
@@ -18,31 +20,14 @@ class ImportPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(importControllerProvider);
     final controller = ref.read(importControllerProvider.notifier);
-
-    // Listen for completion to show feedback and navigate
-    ref.listen<ImportState>(importControllerProvider, (previous, next) {
-      if (next.status == ImportStatus.completed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${next.importedCount} ${next.importedCount == 1 ? 'transaction' : 'transactions'} added successfully',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: AppColors.successGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        // Return to Transactions list
-        context.go('/transactions');
-      }
-    });
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final hasPendingTransactions =
+        state.status == ImportStatus.review &&
+        state.extractedTransactions.isNotEmpty;
+
     return PopScope(
-      canPop:
-          state.status == ImportStatus.initial ||
-          state.status == ImportStatus.completed,
+      canPop: !hasPendingTransactions,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldLeave = await _showDiscardConfirmation(context, isDark);
@@ -60,10 +45,7 @@ class ImportPage extends ConsumerWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () async {
-              if (state.status == ImportStatus.initial ||
-                  state.status == ImportStatus.completed) {
-                context.pop();
-              } else {
+              if (hasPendingTransactions) {
                 final shouldLeave = await _showDiscardConfirmation(
                   context,
                   isDark,
@@ -72,9 +54,15 @@ class ImportPage extends ConsumerWidget {
                   controller.reset();
                   context.pop();
                 }
+              } else {
+                if (state.status == ImportStatus.completed) {
+                  controller.reset();
+                }
+                context.pop();
               }
             },
           ),
+
           actions: [
             if (state.status == ImportStatus.preview)
               TextButton(
@@ -92,13 +80,14 @@ class ImportPage extends ConsumerWidget {
               ),
           ],
         ),
-        body: _buildCurrentView(context, state, controller),
+        body: _buildCurrentView(context, ref, state, controller),
       ),
     );
   }
 
   Widget _buildCurrentView(
     BuildContext context,
+    WidgetRef ref,
     ImportState state,
     ImportController controller,
   ) {
@@ -129,6 +118,7 @@ class ImportPage extends ConsumerWidget {
           selectedIds: state.selectedTransactionIds,
           failedImages: state.failedImagePaths,
           errors: state.errors,
+          imagePaths: state.selectedImagePaths,
           debugOcrText: state.debugOcrText,
           onToggleTransaction: controller.toggleTransactionSelection,
           onToggleSelectAll: controller.toggleSelectAll,
@@ -136,13 +126,24 @@ class ImportPage extends ConsumerWidget {
           onDeleteTransaction: controller.deleteExtractedTransaction,
           onKeepDuplicate: controller.keepDuplicate,
           onSkipDuplicate: controller.skipDuplicate,
-          onConfirmImport: () => controller.confirmImport(),
+          onConfirmImport: () async {
+            final success = await controller.confirmImport();
+            if (success) {
+              ref.read(soundServiceProvider).playImportComplete();
+            } else {
+              ref.read(soundServiceProvider).playError();
+            }
+          },
           onRetry: controller.startProcessing,
           onChooseDifferentScreenshots: controller.pickScreenshots,
         );
 
       case ImportStatus.completed:
-        return const Center(child: CircularProgressIndicator());
+        return ImportSuccessView(
+          count: state.importedCount,
+          formattedTotal: state.formattedImportedTotal,
+          onFinish: () => controller.reset(),
+        );
 
       case ImportStatus.error:
         return Center(
@@ -193,9 +194,9 @@ class ImportPage extends ConsumerWidget {
       case ImportStatus.processing:
         return 'Processing';
       case ImportStatus.review:
-        return 'Review Transactions';
+        return 'Review transactions';
       case ImportStatus.completed:
-        return 'Import Complete';
+        return 'Import complete';
       case ImportStatus.error:
         return 'Import Failed';
     }
@@ -205,9 +206,9 @@ class ImportPage extends ConsumerWidget {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Discard Import?'),
+        title: const Text('Discard imported transactions?'),
         content: const Text(
-          'Are you sure you want to exit? Your selected screenshots and unconfirmed transactions will not be saved.',
+          'Are you sure you want to exit? Your pending transactions will not be saved.',
         ),
         actions: [
           TextButton(

@@ -1,20 +1,30 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/constants/category_constants.dart';
+import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
+import '../../../../shared/widgets/app_bottom_sheet.dart';
+import '../../../transactions/domain/services/category_suggestion_service.dart';
 import '../../domain/entities/extracted_transaction.dart';
+import 'screenshot_viewer_modal.dart';
 
 /// Modal bottom sheet allowing inline correction of an extracted transaction.
 class EditExtractedTransactionSheet extends StatefulWidget {
   final ExtractedTransaction transaction;
+  final List<String> imagePaths;
   final ValueChanged<ExtractedTransaction> onSave;
   final VoidCallback onDelete;
 
   const EditExtractedTransactionSheet({
     super.key,
     required this.transaction,
+    this.imagePaths = const [],
     required this.onSave,
     required this.onDelete,
   });
@@ -22,15 +32,16 @@ class EditExtractedTransactionSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required ExtractedTransaction transaction,
+    List<String> imagePaths = const [],
     required ValueChanged<ExtractedTransaction> onSave,
     required VoidCallback onDelete,
   }) {
-    return showModalBottomSheet<void>(
+    return AppBottomSheet.show<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => EditExtractedTransactionSheet(
         transaction: transaction,
+        imagePaths: imagePaths,
         onSave: onSave,
         onDelete: onDelete,
       ),
@@ -52,18 +63,28 @@ class _EditExtractedTransactionSheetState
   late TransactionType _type;
   late DateTime _date;
   String? _categoryId;
+  bool _userExplicitlyChangedCategory = false;
 
-  final List<String> _categories = [
-    'food',
-    'transport',
-    'shopping',
-    'groceries',
-    'entertainment',
-    'bills',
-    'health',
-    'income',
-    'other',
-  ];
+  void _onTypeChanged(TransactionType newType) {
+    if (_type == newType) return;
+    setState(() {
+      _type = newType;
+      final validCategories = CategoryConstants.getCategoriesForType(newType)
+          .map((c) => c.id)
+          .toSet();
+      if (_categoryId != null && !validCategories.contains(_categoryId)) {
+        _categoryId = null;
+      }
+      if (_categoryId == null && !_userExplicitlyChangedCategory) {
+        final suggestion = CategorySuggestionService.suggest(
+          title: _titleController.text,
+          merchant: _merchantController.text,
+          type: newType,
+        );
+        _categoryId = suggestion.categoryId;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -82,6 +103,16 @@ class _EditExtractedTransactionSheetState
     _type = tx.type;
     _date = tx.date ?? DateTime.now();
     _categoryId = tx.categoryId;
+    if (_categoryId != null && _categoryId!.trim().isNotEmpty) {
+      _userExplicitlyChangedCategory = true;
+    } else {
+      final suggestion = CategorySuggestionService.suggest(
+        title: _titleController.text,
+        merchant: _merchantController.text,
+        type: _type,
+      );
+      _categoryId = suggestion.categoryId;
+    }
   }
 
   @override
@@ -107,7 +138,7 @@ class _EditExtractedTransactionSheetState
 
   void _save() {
     final parsedDecimal = double.tryParse(_amountController.text.trim()) ?? 0.0;
-    final amountMinor = (parsedDecimal * 100).round();
+    final amountMinor = MoneyUtils.doubleToMinorUnits(parsedDecimal);
 
     final updated = widget.transaction.copyWith(
       title: _titleController.text.trim().isNotEmpty
@@ -129,79 +160,169 @@ class _EditExtractedTransactionSheetState
     Navigator.pop(context);
   }
 
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Transaction?'),
+        content: const Text('This candidate will be removed from the import list.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.errorRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      widget.onDelete();
+      Navigator.pop(context);
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
-    return Container(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: bottomInset + 20,
+    final refPath = widget.transaction.sourceReference;
+    final availableImages = <String>[];
+    if (refPath != null && File(refPath).existsSync()) {
+      availableImages.add(refPath);
+    }
+    for (final p in widget.imagePaths) {
+      if (!availableImages.contains(p) && File(p).existsSync()) {
+        availableImages.add(p);
+      }
+    }
+
+    return AppBottomSheet(
+      title: const Text('Edit Transaction'),
+      headerTrailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (availableImages.isNotEmpty)
+            IconButton(
+              icon: const Icon(
+                Icons.image_search_rounded,
+                color: AppColors.primaryPurple,
+              ),
+              tooltip: 'View Original Screenshot',
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                ScreenshotViewerModal.show(
+                  context,
+                  imagePaths: availableImages,
+                  title: widget.transaction.merchant ??
+                      widget.transaction.title ??
+                      'Screenshot',
+                );
+              },
+            ),
+          IconButton(
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.errorRed,
+            ),
+            tooltip: 'Delete transaction',
+            onPressed: _confirmDelete,
+          ),
+        ],
       ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      maxHeightFactor: 0.90,
+      autoScroll: true,
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      bottomAction: SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text(
+            'Save Changes',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle bar
-            Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Original Screenshot quick inspection banner
+          if (availableImages.isNotEmpty) ...[
+            InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                ScreenshotViewerModal.show(
+                  context,
+                  imagePaths: availableImages,
+                  title: widget.transaction.merchant ??
+                      widget.transaction.title ??
+                      'Screenshot',
+                );
+              },
+              borderRadius: BorderRadius.circular(10),
               child: Container(
-                width: 36,
-                height: 4,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkBorder : AppColors.gray300,
-                  borderRadius: AppSpacing.borderRadiusPill,
+                  color: AppColors.primaryPurple.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.primaryPurple.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt_long_rounded,
+                      size: 16,
+                      color: AppColors.primaryPurple,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tap to inspect original receipt screenshot',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.primaryPurple,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.open_in_full_rounded,
+                      size: 14,
+                      color: AppColors.primaryPurple,
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Edit Transaction',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: AppColors.errorRed,
-                  ),
-                  tooltip: 'Delete transaction',
-                  onPressed: () {
-                    widget.onDelete();
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Type Toggle (Expense / Income)
-            Row(
-              children: [
-                Expanded(
+            const SizedBox(height: 14),
+          ],
+          // Type Toggle (Expense / Income)
+          Row(
+            children: [
+              Expanded(
                   child: _TypeButton(
                     label: 'Expense',
                     isSelected: _type == TransactionType.expense,
-                    color: AppColors.primaryPurple,
-                    onTap: () =>
-                        setState(() => _type = TransactionType.expense),
+                    color: primaryColor,
+                    onTap: () => _onTypeChanged(TransactionType.expense),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -210,7 +331,7 @@ class _EditExtractedTransactionSheetState
                     label: 'Income',
                     isSelected: _type == TransactionType.income,
                     color: AppColors.successGreen,
-                    onTap: () => setState(() => _type = TransactionType.income),
+                    onTap: () => _onTypeChanged(TransactionType.income),
                   ),
                 ),
               ],
@@ -313,20 +434,23 @@ class _EditExtractedTransactionSheetState
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _categories.map((cat) {
-                final isSelected = _categoryId == cat;
+              children: CategoryConstants.getCategoriesForType(_type).map((cat) {
+                final isSelected = _categoryId == cat.id;
                 return ChoiceChip(
-                  label: Text(_capitalize(cat)),
+                  label: Text(cat.name),
                   selected: isSelected,
                   onSelected: (val) {
-                    setState(() => _categoryId = val ? cat : null);
+                    setState(() {
+                      _userExplicitlyChangedCategory = true;
+                      _categoryId = val ? cat.id : null;
+                    });
                   },
-                  selectedColor: AppColors.primaryPurple.withValues(alpha: 0.2),
+                  selectedColor: primaryColor.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
-                        ? AppColors.primaryPurple
+                        ? primaryColor
                         : (isDark
                               ? AppColors.darkTextPrimary
                               : AppColors.gray700),
@@ -339,40 +463,20 @@ class _EditExtractedTransactionSheetState
             // Note Input
             TextField(
               controller: _noteController,
+              minLines: 5,
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
               decoration: const InputDecoration(
-                labelText: 'Note (Optional)',
+                labelText: 'Note / Full Message (Optional)',
+                alignLabelWithHint: true,
                 border: OutlineInputBorder(
                   borderRadius: AppSpacing.borderRadiusMedium,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Save Action Button
-            ElevatedButton(
-              onPressed: _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryPurple,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: AppSpacing.borderRadiusMedium,
-                ),
-              ),
-              child: const Text(
-                'Save Changes',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
-  }
-
-  static String _capitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
   }
 }
 

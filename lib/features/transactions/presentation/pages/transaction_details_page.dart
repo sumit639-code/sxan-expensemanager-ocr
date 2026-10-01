@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/constants/category_constants.dart';
 import '../../../../core/utils/money_utils.dart';
 import '../../../../shared/enums/transaction_enums.dart';
@@ -14,24 +15,79 @@ import '../../domain/entities/transaction_entity.dart';
 import '../providers/transaction_providers.dart';
 import 'add_edit_transaction_page.dart';
 
-/// Transaction Details View displaying item metadata, edit, and deletion actions.
+/// Transaction Details View displaying item metadata, receipt styling, edit, and deletion actions.
 class TransactionDetailsPage extends ConsumerWidget {
   final String transactionId;
 
   const TransactionDetailsPage({super.key, required this.transactionId});
+
+  String _formatSource(TransactionSource source) {
+    switch (source) {
+      case TransactionSource.manual:
+        return 'Added manually';
+      case TransactionSource.screenshot:
+        return 'Imported from screenshot';
+      case TransactionSource.import:
+        return 'Imported';
+      case TransactionSource.sms:
+        return 'Imported from Bank SMS';
+    }
+  }
 
   Future<void> _confirmAndDelete(
     BuildContext context,
     WidgetRef ref,
     Transaction tx,
   ) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final formattedAmount = MoneyUtils.formatMinorUnits(
+      tx.amount,
+      currency: tx.currency,
+      symbol: '₹',
+    );
+    final titleOrMerchant = tx.merchant?.isNotEmpty == true
+        ? tx.merchant!
+        : tx.title;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Delete transaction?'),
-          content: const Text(
-            'This transaction will be permanently removed from this device.',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                formattedAmount,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.errorRed,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                titleOrMerchant,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This cannot be undone.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -82,6 +138,9 @@ class TransactionDetailsPage extends ConsumerWidget {
     final primaryTextColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
+    final secondaryTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     final asyncTransactions = ref.watch(watchAllTransactionsProvider);
 
@@ -109,6 +168,7 @@ class TransactionDetailsPage extends ConsumerWidget {
 
               return IconButton(
                 icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit Transaction',
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -158,7 +218,12 @@ class TransactionDetailsPage extends ConsumerWidget {
             );
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: AppSpacing.navPillClearance,
+              ),
               child: Column(
                 children: [
                   // Main Amount Card Header
@@ -192,8 +257,25 @@ class TransactionDetailsPage extends ConsumerWidget {
                             fontWeight: FontWeight.w700,
                             color: primaryTextColor,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 6),
+                        if (tx.merchant != null &&
+                            tx.merchant!.isNotEmpty &&
+                            tx.merchant != tx.title) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            tx.merchant!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        const SizedBox(height: 8),
                         Text(
                           '${isIncome ? '+' : '−'} $formattedAmount',
                           style: TextStyle(
@@ -220,13 +302,13 @@ class TransactionDetailsPage extends ConsumerWidget {
                         ),
                         const Divider(height: 20),
                         _DetailRow(label: 'Category', value: category.name),
-                        if (tx.merchant != null) ...[
+                        if (tx.merchant != null && tx.merchant!.isNotEmpty) ...[
                           const Divider(height: 20),
                           _DetailRow(label: 'Merchant', value: tx.merchant!),
                         ],
                         const Divider(height: 20),
                         _DetailRow(
-                          label: 'Date',
+                          label: 'Date & Time',
                           value: DateFormat(
                             'EEEE, MMMM d, yyyy · h:mm a',
                           ).format(tx.date),
@@ -234,12 +316,54 @@ class TransactionDetailsPage extends ConsumerWidget {
                         const Divider(height: 20),
                         _DetailRow(
                           label: 'Source',
-                          value: tx.source.value.toUpperCase(),
+                          value: _formatSource(tx.source),
                         ),
                         if (tx.note != null && tx.note!.isNotEmpty) ...[
                           const Divider(height: 20),
-                          _DetailRow(label: 'Note', value: tx.note!),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Note / Full Message',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.25)
+                                      : AppColors.gray100.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  tx.note!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.45,
+                                    color: primaryTextColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
+                        const Divider(height: 20),
+                        _DetailRow(
+                          label: 'Created',
+                          value: DateFormat(
+                            'MMM d, yyyy · h:mm a',
+                          ).format(tx.createdAt),
+                        ),
                       ],
                     ),
                   ),
@@ -295,6 +419,7 @@ class _DetailRow extends StatelessWidget {
             color: secondaryTextColor,
           ),
         ),
+        const SizedBox(width: 12),
         Flexible(
           child: Text(
             value,

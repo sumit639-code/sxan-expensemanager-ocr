@@ -28,7 +28,12 @@ class ProcessingScreenshotsView extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+        padding: const EdgeInsets.only(
+          left: 28,
+          right: 28,
+          top: 32,
+          bottom: AppSpacing.navPillClearance,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

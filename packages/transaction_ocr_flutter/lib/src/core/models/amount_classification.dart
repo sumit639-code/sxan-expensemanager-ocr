@@ -3,6 +3,7 @@
 class AmountClassification {
   final bool isAmount;
   final num? parsedValue;
+  final int? parsedMinorUnits;
   final String normalizedText;
   final String? rejectionReason;
   final bool hasCurrencySymbol;
@@ -11,6 +12,7 @@ class AmountClassification {
   const AmountClassification({
     required this.isAmount,
     this.parsedValue,
+    this.parsedMinorUnits,
     required this.normalizedText,
     this.rejectionReason,
     this.hasCurrencySymbol = false,
@@ -21,6 +23,7 @@ class AmountClassification {
     return AmountClassification(
       isAmount: json['is_amount'] as bool? ?? false,
       parsedValue: json['parsed_value'] as num?,
+      parsedMinorUnits: json['parsed_minor_units'] as int?,
       normalizedText: json['normalized_text'] as String? ?? '',
       rejectionReason: json['rejection_reason'] as String?,
       hasCurrencySymbol: json['has_currency_symbol'] as bool? ?? false,
@@ -32,6 +35,7 @@ class AmountClassification {
     return {
       'is_amount': isAmount,
       'parsed_value': parsedValue,
+      'parsed_minor_units': parsedMinorUnits,
       'normalized_text': normalizedText,
       'rejection_reason': rejectionReason,
       'has_currency_symbol': hasCurrencySymbol,
@@ -41,5 +45,6 @@ class AmountClassification {
 
   @override
   String toString() =>
-      'AmountClassification(isAmount: $isAmount, parsedValue: $parsedValue, normalizedText: $normalizedText, reason: $rejectionReason)';
+      'AmountClassification(isAmount: $isAmount, parsedValue: $parsedValue, minorUnits: $parsedMinorUnits, normalizedText: $normalizedText, reason: $rejectionReason)';
 }
+

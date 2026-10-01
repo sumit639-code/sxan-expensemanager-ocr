@@ -36,21 +36,19 @@ class RecentTransactions extends StatelessWidget {
         if (transactions.isEmpty)
           DashboardEmptyState(onAddFirstPressed: onAddFirstPressed)
         else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: transactions.length,
-            separatorBuilder: (context, index) =>
-                const Divider(height: 1, indent: 58, color: Colors.transparent),
-            itemBuilder: (context, index) {
-              final item = transactions[index];
-              return TransactionTile(
-                transaction: item,
-                onTap: () {
-                  context.push('/transactions/${item.id}');
-                },
-              );
-            },
+          Column(
+            children: [
+              for (int i = 0; i < transactions.length; i++) ...[
+                if (i > 0)
+                  const Divider(height: 1, indent: 58, color: Colors.transparent),
+                TransactionTile(
+                  transaction: transactions[i],
+                  onTap: () {
+                    context.push('/transactions/${transactions[i].id}');
+                  },
+                ),
+              ],
+            ],
           ),
       ],
     );

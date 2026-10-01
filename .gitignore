@@ -30,7 +30,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+**/build/
 /build/
+*.dill
 /coverage/
 
 # Symbolication related
@@ -43,3 +45,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/assets/sample-screenshots
+
+# Release APKs, Bundles and Release Folders
+*.apk
+*.aab
+/release/
+release/
+/releases/
+releases/
+/release_apks/
+release_apks/

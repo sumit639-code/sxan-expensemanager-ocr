@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import '../../../../core/utils/money_utils.dart';
 import '../../domain/entities/extracted_transaction.dart';
 import '../widgets/edit_extracted_transaction_sheet.dart';
 import '../widgets/extracted_transaction_tile.dart';
+import '../widgets/screenshot_viewer_modal.dart';
 
 /// Screen allowing the user to review, edit, select/deselect, and confirm extracted transactions.
 class ReviewTransactionsView extends StatelessWidget {
@@ -15,6 +18,7 @@ class ReviewTransactionsView extends StatelessWidget {
   final Set<String> selectedIds;
   final List<String> failedImages;
   final List<String> errors;
+  final List<String> imagePaths;
   final String? debugOcrText;
   final ValueChanged<String> onToggleTransaction;
   final VoidCallback onToggleSelectAll;
@@ -32,6 +36,7 @@ class ReviewTransactionsView extends StatelessWidget {
     required this.selectedIds,
     required this.failedImages,
     required this.errors,
+    this.imagePaths = const [],
     this.debugOcrText,
     required this.onToggleTransaction,
     required this.onToggleSelectAll,
@@ -66,6 +71,13 @@ class ReviewTransactionsView extends StatelessWidget {
       return _buildEmptyState(context, isDark);
     }
 
+    final needsReviewCount = transactions.where((tx) =>
+      tx.confidence <= 0.85 ||
+      tx.isDuplicate ||
+      tx.amount == null ||
+      tx.date == null
+    ).length;
+
     return Column(
       children: [
         // Summary Header & Select All Control Bar
@@ -89,20 +101,21 @@ class ReviewTransactionsView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Review Transactions',
+                        'Review transactions',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: FontWeight.w700,
                           color: isDark
                               ? AppColors.darkTextPrimary
                               : AppColors.lightTextPrimary,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
-                        'Check details before adding to your account',
+                        '$totalCount ${totalCount == 1 ? 'transaction' : 'transactions'} · $selectedCount selected',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                           color: isDark
                               ? AppColors.darkTextSecondary
                               : AppColors.gray600,
@@ -112,31 +125,98 @@ class ReviewTransactionsView extends StatelessWidget {
                   ),
                   Row(
                     children: [
+                      if (imagePaths.isNotEmpty) ...[
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            ScreenshotViewerModal.show(
+                              context,
+                              imagePaths: imagePaths,
+                              title: 'Receipts (${imagePaths.length})',
+                            );
+                          },
+                          borderRadius: AppSpacing.borderRadiusMedium,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryPurple.withValues(
+                                alpha: 0.10,
+                              ),
+                              borderRadius: AppSpacing.borderRadiusMedium,
+                              border: Border.all(
+                                color: AppColors.primaryPurple.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.image_search_rounded,
+                                  size: 16,
+                                  color: AppColors.primaryPurple,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  imagePaths.length > 1
+                                      ? 'Receipts (${imagePaths.length})'
+                                      : 'Receipt',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primaryPurple,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       if (kDebugMode &&
                           (debugOcrText != null || transactions.isNotEmpty))
                         IconButton(
-                          icon: const Icon(Icons.bug_report_outlined, size: 20),
+                          icon: const Icon(
+                            Icons.bug_report_outlined,
+                            size: 20,
+                          ),
                           tooltip: 'Debug Inspector',
                           onPressed: () =>
                               _showDebugExtractionSheet(context, isDark),
                         ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryPurple.withValues(
-                            alpha: 0.12,
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onToggleSelectAll();
+                        },
+                        borderRadius: AppSpacing.borderRadiusMedium,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                          borderRadius: AppSpacing.borderRadiusMedium,
-                        ),
-                        child: Text(
-                          formattedTotal,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryPurple,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryPurple.withValues(
+                              alpha: isAllSelected ? 0.15 : 0.08,
+                            ),
+                            borderRadius: AppSpacing.borderRadiusMedium,
+                            border: Border.all(
+                              color: AppColors.primaryPurple.withValues(
+                                alpha: isAllSelected ? 0.4 : 0.2,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            isAllSelected ? 'Deselect all' : 'Select all',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryPurple,
+                            ),
                           ),
                         ),
                       ),
@@ -144,78 +224,63 @@ class ReviewTransactionsView extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-
-              // Select All Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onToggleSelectAll();
-                    },
-                    borderRadius: BorderRadius.circular(6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Checkbox(
-                          value: isAllSelected,
-                          onChanged: (_) {
-                            HapticFeedback.selectionClick();
-                            onToggleSelectAll();
-                          },
-                          activeColor: AppColors.primaryPurple,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const Text(
-                          'Select all',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '$selectedCount of $totalCount selected',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.gray600,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
 
+        // Contextual Warning Banner: Transactions needing review
+        if (needsReviewCount > 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 10, 20, 2),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.12),
+              borderRadius: AppSpacing.borderRadiusMedium,
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 20, color: Colors.amber),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$needsReviewCount ${needsReviewCount == 1 ? 'transaction needs' : 'transactions need'} review',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.amber[200] : Colors.amber[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // Partial Failure Banner (if any screenshot failed)
         if (failedImages.isNotEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Colors.amber.withValues(alpha: 0.15),
+            margin: const EdgeInsets.fromLTRB(20, 6, 20, 2),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.errorRed.withValues(alpha: 0.1),
+              borderRadius: AppSpacing.borderRadiusMedium,
+              border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
+            ),
             child: Row(
               children: [
                 const Icon(
                   Icons.info_outline_rounded,
                   size: 18,
-                  color: Colors.amber,
+                  color: AppColors.errorRed,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '$totalCount ${totalCount == 1 ? 'transaction' : 'transactions'} found. ${failedImages.length} ${failedImages.length == 1 ? 'screenshot' : 'screenshots'} could not be read.',
+                    '${failedImages.length} ${failedImages.length == 1 ? 'screenshot' : 'screenshots'} could not be processed.',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.amber[300] : Colors.amber[900],
+                      color: isDark ? Colors.red[300] : AppColors.errorRed,
                     ),
                   ),
                 ),
@@ -240,47 +305,108 @@ class ReviewTransactionsView extends StatelessWidget {
             ),
           ),
 
-        // Transaction List
+        // Transaction List with Dismissible Swipe-to-delete
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             itemCount: transactions.length,
             itemBuilder: (context, index) {
               final tx = transactions[index];
               final isSelected = selectedIds.contains(tx.id);
 
-              return ExtractedTransactionTile(
-                transaction: tx,
-                isSelected: isSelected,
-                onToggle: (_) {
-                  HapticFeedback.selectionClick();
-                  onToggleTransaction(tx.id);
+              return Dismissible(
+                key: ValueKey(tx.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.errorRed,
+                    borderRadius: AppSpacing.borderRadiusLarge,
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+                      SizedBox(width: 6),
+                      Text(
+                        'Delete',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                onDismissed: (_) {
+                  HapticFeedback.mediumImpact();
+                  onDeleteTransaction(tx.id);
                 },
-                onTap: () {
-                  EditExtractedTransactionSheet.show(
-                    context,
-                    transaction: tx,
-                    onSave: onUpdateTransaction,
-                    onDelete: () => onDeleteTransaction(tx.id),
-                  );
-                },
-                onDelete: () => onDeleteTransaction(tx.id),
-                onKeepDuplicate: () {
-                  HapticFeedback.selectionClick();
-                  onKeepDuplicate(tx.id);
-                },
-                onSkipDuplicate: () {
-                  HapticFeedback.selectionClick();
-                  onSkipDuplicate(tx.id);
-                },
+                child: ExtractedTransactionTile(
+                  transaction: tx,
+                  isSelected: isSelected,
+                  onToggle: (_) {
+                    HapticFeedback.selectionClick();
+                    onToggleTransaction(tx.id);
+                  },
+                  onTap: () {
+                    EditExtractedTransactionSheet.show(
+                      context,
+                      transaction: tx,
+                      imagePaths: imagePaths,
+                      onSave: onUpdateTransaction,
+                      onDelete: () => onDeleteTransaction(tx.id),
+                    );
+                  },
+                  onViewScreenshot: () {
+                    final targetPath = tx.sourceReference;
+                    String? resolved;
+                    if (targetPath != null && File(targetPath).existsSync()) {
+                      resolved = targetPath;
+                    } else if (targetPath != null) {
+                      for (final p in imagePaths) {
+                        if (p.endsWith(targetPath) && File(p).existsSync()) {
+                          resolved = p;
+                          break;
+                        }
+                      }
+                    }
+                    final listToShow =
+                        resolved != null ? [resolved] : imagePaths;
+                    if (listToShow.isNotEmpty) {
+                      ScreenshotViewerModal.show(
+                        context,
+                        imagePaths: listToShow,
+                        title: tx.merchant ?? tx.title ?? 'Receipt Screenshot',
+                      );
+                    }
+                  },
+                  onDelete: () => onDeleteTransaction(tx.id),
+                  onKeepDuplicate: () {
+                    HapticFeedback.selectionClick();
+                    onKeepDuplicate(tx.id);
+                  },
+                  onSkipDuplicate: () {
+                    HapticFeedback.selectionClick();
+                    onSkipDuplicate(tx.id);
+                  },
+                ),
               );
             },
           ),
         ),
 
-        // Bottom Sticky Action Button
+        // Bottom Sticky Action Button with Selected Total
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 14,
+            bottom: AppSpacing.navPillClearance,
+          ),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : AppColors.white,
             border: Border(
@@ -298,37 +424,71 @@ class ReviewTransactionsView extends StatelessWidget {
           ),
           child: SafeArea(
             top: false,
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: selectedCount > 0
-                    ? () {
-                        HapticFeedback.lightImpact();
-                        onConfirmImport();
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPurple,
-                  foregroundColor: AppColors.white,
-                  disabledBackgroundColor: isDark
-                      ? AppColors.darkBorder
-                      : AppColors.gray300,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: AppSpacing.borderRadiusMedium,
-                  ),
-                  elevation: selectedCount > 0 ? 3 : 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Selected total',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.gray600,
+                      ),
+                    ),
+                    Text(
+                      formattedTotal,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  selectedCount > 0
-                      ? 'Add $selectedCount ${selectedCount == 1 ? 'transaction' : 'transactions'}'
-                      : 'Add transactions',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedCount > 0
+                        ? () {
+                            HapticFeedback.lightImpact();
+                            onConfirmImport();
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPurple,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.gray300,
+                      disabledForegroundColor: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.gray500,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: AppSpacing.borderRadiusMedium,
+                      ),
+                      elevation: selectedCount > 0 ? 3 : 0,
+                    ),
+                    child: Text(
+                      selectedCount > 0
+                          ? 'Import $selectedCount ${selectedCount == 1 ? 'transaction' : 'transactions'}'
+                          : 'Import 0 transactions',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -365,8 +525,13 @@ class ReviewTransactionsView extends StatelessWidget {
     }
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(
+          left: 32,
+          right: 32,
+          top: 32,
+          bottom: AppSpacing.navPillClearance,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -473,10 +638,13 @@ class ReviewTransactionsView extends StatelessWidget {
           maxChildSize: 0.95,
           minChildSize: 0.4,
           builder: (context, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: ListView(
-                controller: scrollController,
+            return SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: ListView(
+                  controller: scrollController,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -563,8 +731,9 @@ class ReviewTransactionsView extends StatelessWidget {
                     ),
                 ],
               ),
-            );
-          },
+            ),
+          );
+        },
         );
       },
     );

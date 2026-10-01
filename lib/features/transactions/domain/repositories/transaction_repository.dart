@@ -10,6 +10,7 @@ abstract class TransactionRepository {
   Future<void> addTransactions(List<Transaction> transactions);
   Future<void> updateTransaction(Transaction transaction);
   Future<void> deleteTransaction(String id);
+  Future<void> deleteTransactions(List<String> ids);
   Future<List<Transaction>> getTransactionsByDateRange(
     DateTime start,
     DateTime end,

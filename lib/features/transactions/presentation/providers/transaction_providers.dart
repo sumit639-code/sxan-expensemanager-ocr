@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/category_constants.dart';
 import '../../../../core/database/database_provider.dart';
 import '../../../../shared/enums/transaction_enums.dart';
-import '../../../dashboard/domain/models/dashboard_summary.dart';
 import '../../data/repositories/drift_transaction_repository.dart';
 import '../../domain/entities/transaction_entity.dart';
 import '../../domain/entities/transaction_filter.dart';
@@ -32,8 +32,19 @@ final deleteTransactionUseCaseProvider = Provider<DeleteTransactionUseCase>((
   return DeleteTransactionUseCase(ref.watch(transactionRepositoryProvider));
 });
 
+final deleteTransactionsUseCaseProvider = Provider<DeleteTransactionsUseCase>((
+  ref,
+) {
+  return DeleteTransactionsUseCase(ref.watch(transactionRepositoryProvider));
+});
+
 final getTransactionUseCaseProvider = Provider<GetTransactionUseCase>((ref) {
   return GetTransactionUseCase(ref.watch(transactionRepositoryProvider));
+});
+
+final clearAllTransactionsUseCaseProvider =
+    Provider<ClearAllTransactionsUseCase>((ref) {
+  return ClearAllTransactionsUseCase(ref.watch(transactionRepositoryProvider));
 });
 
 /// Real-time stream provider of all transactions from Drift SQLite.
@@ -53,17 +64,38 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 /// Backward-compatible filter type provider that syncs with TransactionFilter.
 final filterTypeProvider = StateProvider<TransactionType?>((ref) => null);
 
+/// Set of selected transaction IDs for multi-select / bulk operations.
+final selectedTransactionIdsProvider = StateProvider<Set<String>>((ref) => {});
+
+/// Computed summary metrics for the currently filtered set of transactions.
+class FilteredTransactionsSummary {
+  final int count;
+  final int totalExpenseMinor;
+  final int totalIncomeMinor;
+  final int netMinor;
+
+  const FilteredTransactionsSummary({
+    required this.count,
+    required this.totalExpenseMinor,
+    required this.totalIncomeMinor,
+    required this.netMinor,
+  });
+}
+
 /// Filter helper function to evaluate whether a transaction matches a given [TransactionFilter].
 bool matchesTransactionFilter(Transaction tx, TransactionFilter filter, {DateTime? now}) {
   final current = now ?? DateTime.now();
   final q = filter.searchQuery.trim().toLowerCase();
 
-  // Search query (title, merchant, note)
+  // Search query (title, merchant, note, and category name)
   if (q.isNotEmpty) {
     final matchTitle = tx.title.toLowerCase().contains(q);
     final matchMerchant = tx.merchant != null && tx.merchant!.toLowerCase().contains(q);
     final matchNote = tx.note != null && tx.note!.toLowerCase().contains(q);
-    if (!matchTitle && !matchMerchant && !matchNote) {
+    final category = CategoryConstants.getCategoryById(tx.categoryId, tx.type);
+    final matchCategory = category.name.toLowerCase().contains(q) ||
+        (tx.categoryId != null && tx.categoryId!.toLowerCase().contains(q));
+    if (!matchTitle && !matchMerchant && !matchNote && !matchCategory) {
       return false;
     }
   }
@@ -220,13 +252,28 @@ final filteredTransactionsProvider = Provider<AsyncValue<List<Transaction>>>((
   });
 });
 
-/// Real-time summary computation provider for Dashboard.
-final dashboardRealtimeSummaryProvider = Provider<AsyncValue<DashboardSummary>>(
-  (ref) {
-    final asyncTransactions = ref.watch(watchAllTransactionsProvider);
-    return asyncTransactions.whenData((transactions) {
-      return GetMonthlySummaryUseCase.calculateSummary(transactions);
-    });
-  },
-);
+/// Reactive provider calculating count, expense total, income total, and net for the filtered transactions.
+final filteredSummaryProvider = Provider<FilteredTransactionsSummary>((ref) {
+  final asyncFiltered = ref.watch(filteredTransactionsProvider);
+  final transactions = asyncFiltered.valueOrNull ?? [];
+
+  int expense = 0;
+  int income = 0;
+  for (final tx in transactions) {
+    if (tx.type == TransactionType.income) {
+      income += tx.amount;
+    } else {
+      expense += tx.amount;
+    }
+  }
+
+  return FilteredTransactionsSummary(
+    count: transactions.length,
+    totalExpenseMinor: expense,
+    totalIncomeMinor: income,
+    netMinor: income - expense,
+  );
+});
+
+
 

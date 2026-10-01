@@ -28,6 +28,12 @@ class FakeTransactionRepository implements TransactionRepository {
       _storage.removeWhere((t) => t.id == id);
 
   @override
+  Future<void> deleteTransactions(List<String> ids) async {
+    final set = ids.toSet();
+    _storage.removeWhere((t) => set.contains(t.id));
+  }
+
+  @override
   Future<Transaction?> getTransactionById(String id) async =>
       _storage.firstWhere(
         (t) => t.id == id,
@@ -140,5 +146,44 @@ void main() {
         expect(results[1].duplicateSource, DuplicateSource.intraBatch);
       },
     );
+
+    test('detects duplicates of identical bank SMS messages and preserves note', () async {
+      final repo = FakeTransactionRepository([]);
+      final detector = DuplicateDetector(repo);
+
+      const sms = '''
+Sent Rs.170.00
+From HDFC Bank A/C *2711
+To RABI COSMETICS
+On 20/09/26
+Ref 129959218177
+Not You?
+Call 18002586161/SMS BLOCK UPI to 7308080808
+''';
+      final tx1 = ExtractedTransaction(
+        id: 'sms-1',
+        title: 'To: RABI COSMETICS (From: HDFC Bank A/C *2711)',
+        merchant: 'RABI COSMETICS',
+        amount: 17000,
+        date: DateTime(2026, 9, 20),
+        note: sms.trim(),
+      );
+      final tx2 = ExtractedTransaction(
+        id: 'sms-2',
+        title: 'To: RABI COSMETICS (From: HDFC Bank A/C *2711)',
+        merchant: 'RABI COSMETICS',
+        amount: 17000,
+        date: DateTime(2026, 9, 20),
+        note: sms.trim(),
+      );
+
+      final results = await detector.detectDuplicates([tx1, tx2]);
+
+      expect(results[0].isDuplicate, isFalse);
+      expect(results[0].note, contains('Call 18002586161'));
+      expect(results[1].isDuplicate, isTrue);
+      expect(results[1].duplicateSource, DuplicateSource.intraBatch);
+      expect(results[1].note, contains('Call 18002586161'));
+    });
   });
 }

@@ -89,14 +89,14 @@ void main() {
     );
 
     expect(find.text('Transactions'), findsOneWidget);
-    expect(find.text('Search transactions or merchants...'), findsOneWidget);
+    expect(find.text('Search title, merchant, note, category...'), findsOneWidget);
     expect(find.text('All'), findsOneWidget);
     expect(find.text('Expenses'), findsOneWidget);
     expect(find.text('Income'), findsOneWidget);
   });
 
   testWidgets(
-    'TransactionHistoryPage displays filter empty state with Clear Filters button',
+    'TransactionHistoryPage displays search empty state with Clear Search button',
     (tester) async {
       final sampleTx = Transaction(
         id: 'tx-1',
@@ -131,13 +131,57 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('No transactions found'), findsOneWidget);
-      expect(find.text('Clear Filters'), findsWidgets);
+      expect(find.text('No transactions match "NonExistentItem"'), findsOneWidget);
+      expect(find.text('Clear Search'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'QuickActions renders buttons for Add, Scan, Analytics, and More',
+    'TransactionHistoryPage displays filter empty state with Clear Filters button',
+    (tester) async {
+      final sampleTx = Transaction(
+        id: 'tx-1',
+        type: TransactionType.expense,
+        amount: 50000,
+        title: 'Dinner',
+        date: DateTime.now(),
+        source: TransactionSource.manual,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            watchAllTransactionsProvider.overrideWith(
+              (ref) => Stream.value([sampleTx]),
+            ),
+            filteredTransactionsProvider.overrideWith(
+              (ref) => const AsyncValue.data(<Transaction>[]),
+            ),
+            transactionFilterProvider.overrideWith(
+              (ref) => const TransactionFilter(
+                type: TransactionType.income,
+                categoryId: 'salary',
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: testTheme,
+            home: const TransactionHistoryPage(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('No transactions match these filters'), findsOneWidget);
+      expect(find.text('Clear Filters'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'QuickActions renders buttons for Expense, Income, Import, and Insights',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -146,10 +190,10 @@ void main() {
         ),
       );
 
-      expect(find.text('Add'), findsOneWidget);
-      expect(find.text('Scan'), findsOneWidget);
-      expect(find.text('Analytics'), findsOneWidget);
-      expect(find.text('More'), findsOneWidget);
+      expect(find.text('Expense'), findsOneWidget);
+      expect(find.text('Income'), findsOneWidget);
+      expect(find.text('Import'), findsOneWidget);
+      expect(find.text('Insights'), findsOneWidget);
     },
   );
 }

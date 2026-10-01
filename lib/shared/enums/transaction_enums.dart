@@ -18,7 +18,8 @@ enum TransactionType {
 enum TransactionSource {
   manual('manual'),
   screenshot('screenshot'),
-  import('import');
+  import('import'),
+  sms('sms');
 
   final String value;
   const TransactionSource(this.value);

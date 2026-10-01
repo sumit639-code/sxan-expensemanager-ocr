@@ -2,120 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_spacing.dart';
 
-/// Row of 4 quick action buttons (Add, Scan, Analytics, More).
+/// Row of 4 quick action buttons (Expense, Income, Import, Insights).
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
-
-  void _showMoreBottomSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkBorder : AppColors.gray300,
-                    borderRadius: AppSpacing.borderRadiusPill,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Quick Utilities',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryPurple.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.file_download_outlined,
-                    color: AppColors.primaryPurple,
-                  ),
-                ),
-                title: const Text(
-                  'Export Data (CSV)',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Export all transactions in Settings'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/settings');
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.brightViolet.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.settings_outlined,
-                    color: AppColors.brightViolet,
-                  ),
-                ),
-                title: const Text(
-                  'App Settings',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Themes, currency & preferences'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/settings');
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.successGreen.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.filter_list_rounded,
-                    color: AppColors.successGreen,
-                  ),
-                ),
-                title: const Text(
-                  'Filter History',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Advanced search and date filters'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/transactions');
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,25 +13,25 @@ class QuickActions extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _ActionButton(
-          label: 'Add',
-          icon: Icons.add_rounded,
-          onTap: () => context.push('/add'),
+          label: 'Expense',
+          icon: Icons.remove_rounded,
+          onTap: () => context.push('/add?type=expense'),
         ),
         _ActionButton(
-          label: 'Scan',
+          label: 'Income',
+          icon: Icons.add_rounded,
+          onTap: () => context.push('/add?type=income'),
+        ),
+        _ActionButton(
+          label: 'Import',
           icon: Icons.document_scanner_rounded,
           isHighlight: true,
           onTap: () => context.push('/import'),
         ),
         _ActionButton(
-          label: 'Analytics',
+          label: 'Insights',
           icon: Icons.bar_chart_rounded,
           onTap: () => context.push('/insights'),
-        ),
-        _ActionButton(
-          label: 'More',
-          icon: Icons.more_horiz_rounded,
-          onTap: () => _showMoreBottomSheet(context),
         ),
       ],
     );
@@ -163,18 +53,29 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+    final secondaryColor = theme.colorScheme.secondary;
+
+    final gradient = LinearGradient(
+      colors: [primaryColor, secondaryColor],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    BorderRadius buttonRadius = const BorderRadius.all(Radius.circular(16));
+    final cardShape = theme.cardTheme.shape;
+    if (cardShape is RoundedRectangleBorder) {
+      final radius = cardShape.borderRadius.resolve(Directionality.maybeOf(context));
+      buttonRadius = BorderRadius.circular((radius.topLeft.x * 0.75).clamp(8.0, 20.0));
+    }
+
     final primaryTextColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
 
-    final bg = isHighlight
-        ? const LinearGradient(
-            colors: [AppColors.brightViolet, AppColors.primaryPurple],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
-        : null;
+    final bg = isHighlight ? gradient : null;
 
     final containerColor = isHighlight
         ? null
@@ -187,7 +88,7 @@ class _ActionButton extends StatelessWidget {
             width: 1,
           );
 
-    final iconColor = isHighlight ? AppColors.white : AppColors.primaryPurple;
+    final iconColor = isHighlight ? AppColors.white : primaryColor;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -196,7 +97,7 @@ class _ActionButton extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: AppSpacing.borderRadiusMedium,
+            borderRadius: buttonRadius,
             child: Container(
               width: 56,
               height: 56,
@@ -204,11 +105,11 @@ class _ActionButton extends StatelessWidget {
                 gradient: bg,
                 color: containerColor,
                 border: border,
-                borderRadius: AppSpacing.borderRadiusMedium,
+                borderRadius: buttonRadius,
                 boxShadow: isHighlight
                     ? [
                         BoxShadow(
-                          color: AppColors.primaryPurple.withValues(alpha: 0.3),
+                          color: primaryColor.withValues(alpha: 0.35),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

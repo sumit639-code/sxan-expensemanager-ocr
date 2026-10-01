@@ -54,8 +54,20 @@ class DateExtractor {
 
   /// Parses a date from a single line of OCR text, returning [DateExtractionResult] or null.
   static DateExtractionResult? parseDate(String text, {DateTime? now}) {
-    final clean = text.trim();
+    var clean = text.trim();
     if (clean.isEmpty) return null;
+
+    // Normalize compacted day+month without spaces: "1August" -> "1 August", "04Sept" -> "04 Sept"
+    clean = clean.replaceAllMapped(
+      RegExp(r'(\d{1,2})([A-Za-z]{3,9})'),
+      (m) => '${m.group(1)} ${m.group(2)}',
+    );
+    // Also compacted month+day: "August1" -> "August 1", "Sep07" -> "Sep 07"
+    clean = clean.replaceAllMapped(
+      RegExp(r'([A-Za-z]{3,9})(\d{1,2})'),
+      (m) => '${m.group(1)} ${m.group(2)}',
+    );
+
     final lower = clean.toLowerCase();
     final baseTime = now ?? DateTime.now();
 
@@ -94,7 +106,7 @@ class DateExtractor {
       }
     }
 
-    if (lower.contains('yesterday')) {
+    if (RegExp(r'\byesterday\b', caseSensitive: false).hasMatch(lower)) {
       final y = baseTime.subtract(const Duration(days: 1));
       return DateExtractionResult(
         date: DateTime(y.year, y.month, y.day),
@@ -104,7 +116,7 @@ class DateExtractor {
       );
     }
 
-    if (lower.contains('today')) {
+    if (RegExp(r'\btoday\b', caseSensitive: false).hasMatch(lower)) {
       return DateExtractionResult(
         date: DateTime(baseTime.year, baseTime.month, baseTime.day),
         hasExplicitYear: true,
@@ -113,9 +125,40 @@ class DateExtractor {
       );
     }
 
-    // 2. Full Date with Time: "2 September 2026 at 2:35 pm" or "2 September 2026 2:35pm"
+    // 2a. Time first with 'on' Date: "07:13 pm on 14 Aug 2026"
+    final timeOnDateMatch = RegExp(
+      r'(\d{1,2}):(\d{2})\s*(am|pm)?\s+on\s+(\d{1,2})\s*([A-Za-z]{3,9})\s+(\d{4})',
+      caseSensitive: false,
+    ).firstMatch(clean);
+
+    if (timeOnDateMatch != null) {
+      var hour = int.tryParse(timeOnDateMatch.group(1)!);
+      final minute = int.tryParse(timeOnDateMatch.group(2)!);
+      final ampm = timeOnDateMatch.group(3)?.toLowerCase();
+      final day = int.tryParse(timeOnDateMatch.group(4)!);
+      final monthStr = timeOnDateMatch.group(5)!.toLowerCase();
+      final year = int.tryParse(timeOnDateMatch.group(6)!);
+
+      final month = _monthMap[monthStr];
+      if (day != null &&
+          month != null &&
+          year != null &&
+          hour != null &&
+          minute != null) {
+        if (ampm == 'pm' && hour < 12) hour += 12;
+        if (ampm == 'am' && hour == 12) hour = 0;
+        return DateExtractionResult(
+          date: DateTime(year, month, day, hour, minute),
+          hasExplicitYear: true,
+          isRelative: false,
+          rawMatchedText: timeOnDateMatch.group(0)!,
+        );
+      }
+    }
+
+    // 2b. Full Date with Time: "2 September 2026 at 2:35 pm" or "14 Sept 2026, 7:53 pm"
     final fullDateTimeMatch = RegExp(
-      r'(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})(?:\s+at)?\s+(\d{1,2}):(\d{2})\s*(am|pm)?',
+      r'(\d{1,2})\s*([A-Za-z]{3,9})\s+(\d{4})[,.]?(?:\s+at|\s*,)?\s+(\d{1,2}):(\d{2})\s*(am|pm)?',
       caseSensitive: false,
     ).firstMatch(clean);
 
@@ -146,7 +189,7 @@ class DateExtractor {
 
     // 3. Format: "07 Sep 2026" or "7 September 2026" (with year)
     final dMmmYMatch = RegExp(
-      r'(\d{1,2})\s+([A-Za-z]{3,9})[,.]?\s+(\d{4})',
+      r'(\d{1,2})\s*([A-Za-z]{3,9})[,.]?\s+(\d{4})',
     ).firstMatch(clean);
     if (dMmmYMatch != null) {
       final day = int.tryParse(dMmmYMatch.group(1)!);
@@ -186,43 +229,53 @@ class DateExtractor {
       }
     }
 
-    // 5. Layout A date without year: "7 September", "6 September", "04 Sept", "02 Sept", "7 Sep"
+    // 5. Layout A date without year: "7 September", "6 September", "04 Sept", "02 Sept", "7 Sep", "1August"
     final dMmmMatch = RegExp(
-      r'(\d{1,2})\s+([A-Za-z]{3,9})\b',
+      r'(\d{1,2})\s*([A-Za-z]{3,9})\b',
     ).firstMatch(clean);
     if (dMmmMatch != null) {
       final day = int.tryParse(dMmmMatch.group(1)!);
       final monthStr = dMmmMatch.group(2)!.toLowerCase();
       final month = _monthMap[monthStr];
-      if (day != null &&
-          month != null &&
-          _isValidDate(baseTime.year, month, day)) {
-        return DateExtractionResult(
-          date: DateTime(baseTime.year, month, day),
-          hasExplicitYear: false,
-          isRelative: false,
-          rawMatchedText: dMmmMatch.group(0)!,
-        );
+      if (day != null && month != null) {
+        var year = baseTime.year;
+        final testDate = DateTime(year, month, day);
+        if (testDate.isAfter(baseTime.add(const Duration(days: 1)))) {
+          year--;
+        }
+        if (_isValidDate(year, month, day)) {
+          return DateExtractionResult(
+            date: DateTime(year, month, day),
+            hasExplicitYear: false,
+            isRelative: false,
+            rawMatchedText: dMmmMatch.group(0)!,
+          );
+        }
       }
     }
 
-    // 6. Format: "Sep 07" or "September 7"
+    // 6. Format: "Sep 07" or "September 7" or "Sep07"
     final mmmDMatch = RegExp(
-      r'([A-Za-z]{3,9})\s+(\d{1,2})\b',
+      r'([A-Za-z]{3,9})\s*(\d{1,2})\b',
     ).firstMatch(clean);
     if (mmmDMatch != null) {
       final monthStr = mmmDMatch.group(1)!.toLowerCase();
       final month = _monthMap[monthStr];
       final day = int.tryParse(mmmDMatch.group(2)!);
-      if (day != null &&
-          month != null &&
-          _isValidDate(baseTime.year, month, day)) {
-        return DateExtractionResult(
-          date: DateTime(baseTime.year, month, day),
-          hasExplicitYear: false,
-          isRelative: false,
-          rawMatchedText: mmmDMatch.group(0)!,
-        );
+      if (day != null && month != null) {
+        var year = baseTime.year;
+        final testDate = DateTime(year, month, day);
+        if (testDate.isAfter(baseTime.add(const Duration(days: 1)))) {
+          year--;
+        }
+        if (_isValidDate(year, month, day)) {
+          return DateExtractionResult(
+            date: DateTime(year, month, day),
+            hasExplicitYear: false,
+            isRelative: false,
+            rawMatchedText: mmmDMatch.group(0)!,
+          );
+        }
       }
     }
 

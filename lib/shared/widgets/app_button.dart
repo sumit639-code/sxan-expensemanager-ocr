@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 
-enum AppButtonVariant { primary, secondary, text }
+enum AppButtonVariant { primary, secondary, outline, text }
 
-/// Reusable button supporting Primary, Secondary, and Text variants.
+/// Reusable button supporting Primary, Secondary, Outline, and Text variants.
 ///
 /// Meets the minimum touch target requirement (~48px) and supports loading/disabled states.
 class AppButton extends StatelessWidget {
@@ -44,6 +44,15 @@ class AppButton extends StatelessWidget {
     this.fullWidth = true,
   }) : variant = AppButtonVariant.secondary;
 
+  const AppButton.outline({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.icon,
+    this.isLoading = false,
+    this.fullWidth = true,
+  }) : variant = AppButtonVariant.outline;
+
   const AppButton.text({
     super.key,
     required this.label,
@@ -58,12 +67,15 @@ class AppButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
+
     Widget childWidget;
 
     if (isLoading) {
       final spinnerColor = variant == AppButtonVariant.primary
-          ? AppColors.white
-          : (isDark ? AppColors.lightLavender : AppColors.primaryPurple);
+          ? onPrimary
+          : primary;
       childWidget = SizedBox(
         height: 20,
         width: 20,
@@ -78,7 +90,7 @@ class AppButton extends StatelessWidget {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: _getTextColor(isDark),
+          color: _getTextColor(theme, isDark),
         ),
       );
 
@@ -89,7 +101,7 @@ class AppButton extends StatelessWidget {
           children: [
             labelWidget,
             const SizedBox(width: 8),
-            Icon(icon, size: 20, color: _getTextColor(isDark)),
+            Icon(icon, size: 20, color: _getTextColor(theme, isDark)),
           ],
         );
       } else {
@@ -104,9 +116,9 @@ class AppButton extends StatelessWidget {
         borderRadius: AppSpacing.borderRadiusPill,
       ),
       elevation: 0,
-      backgroundColor: _getBackgroundColor(isDark),
-      foregroundColor: _getTextColor(isDark),
-      side: _getBorderSide(isDark),
+      backgroundColor: _getBackgroundColor(theme, isDark),
+      foregroundColor: _getTextColor(theme, isDark),
+      side: _getBorderSide(theme, isDark),
     );
 
     return ConstrainedBox(
@@ -120,7 +132,7 @@ class AppButton extends StatelessWidget {
                   horizontal: 16,
                   vertical: 10,
                 ),
-                foregroundColor: _getTextColor(isDark),
+                foregroundColor: _getTextColor(theme, isDark),
               ),
               child: childWidget,
             )
@@ -132,41 +144,52 @@ class AppButton extends StatelessWidget {
     );
   }
 
-  Color _getBackgroundColor(bool isDark) {
+  Color _getBackgroundColor(ThemeData theme, bool isDark) {
     if (onPressed == null) {
       return isDark ? AppColors.darkSurfaceVariant : AppColors.gray300;
     }
+    final primary = theme.colorScheme.primary;
     switch (variant) {
       case AppButtonVariant.primary:
-        return AppColors.primaryPurple;
+        return primary;
       case AppButtonVariant.secondary:
         return isDark
             ? AppColors.darkSurfaceVariant
-            : AppColors.veryLightLavender;
+            : primary.withValues(alpha: 0.12);
+      case AppButtonVariant.outline:
       case AppButtonVariant.text:
         return Colors.transparent;
     }
   }
 
-  Color _getTextColor(bool isDark) {
+  Color _getTextColor(ThemeData theme, bool isDark) {
     if (onPressed == null) {
       return AppColors.gray500;
     }
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
     switch (variant) {
       case AppButtonVariant.primary:
-        return AppColors.white;
+        return onPrimary;
       case AppButtonVariant.secondary:
-        return isDark ? AppColors.lightLavender : AppColors.primaryPurple;
+      case AppButtonVariant.outline:
       case AppButtonVariant.text:
-        return isDark ? AppColors.brightViolet : AppColors.primaryPurple;
+        return isDark ? AppColors.white : primary;
     }
   }
 
-  BorderSide? _getBorderSide(bool isDark) {
+  BorderSide? _getBorderSide(ThemeData theme, bool isDark) {
+    final primary = theme.colorScheme.primary;
     if (variant == AppButtonVariant.secondary && onPressed != null) {
       return BorderSide(
         color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
         width: 1,
+      );
+    }
+    if (variant == AppButtonVariant.outline && onPressed != null) {
+      return BorderSide(
+        color: primary,
+        width: 1.5,
       );
     }
     return BorderSide.none;

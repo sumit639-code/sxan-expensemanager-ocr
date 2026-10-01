@@ -205,22 +205,16 @@ class RuleBasedTransactionParser implements TransactionParser {
     if (_isGenericStatusKeyword(text)) return null;
 
     text = text.trim();
-    if (text.length < 2 || text.length > 55) return null;
+    if (text.length < 2 || text.length > 100) return null;
     return text;
   }
 
   bool _isGenericAppHeader(String s) {
     final lower = s.toLowerCase();
     const generic = [
-      'google pay',
-      'gpay',
-      'phonepe',
-      'paytm',
-      'bhim',
-      'bhim upi',
-      'upi',
       'payment details',
       'transaction details',
+      'transfer details',
       'bill payment',
       'debited from',
       'credited to',
@@ -231,6 +225,9 @@ class RuleBasedTransactionParser implements TransactionParser {
       'amount',
       'history',
       'help',
+      'explore',
+      'summary',
+      'receipt',
     ];
     return generic.contains(lower);
   }
@@ -266,7 +263,9 @@ class RuleBasedTransactionParser implements TransactionParser {
     final rowText = row.lines.map((l) => l.text).join(' ').toLowerCase();
     if (rowText.contains('received from') ||
         rowText.contains('credited to') ||
+        rowText.contains('money received') ||
         rowText.contains('refund') ||
+        rowText.contains('cashback') ||
         rowText.contains('salary')) {
       return TransactionType.income;
     }
@@ -274,6 +273,7 @@ class RuleBasedTransactionParser implements TransactionParser {
     // Default for Layout A and Layout B debit is Expense
     return TransactionType.expense;
   }
+
 
   // ---------------------------------------------------------------------------
   // Category Inference
